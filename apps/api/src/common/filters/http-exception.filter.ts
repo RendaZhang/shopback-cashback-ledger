@@ -2,14 +2,22 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from
 import type { Request, Response } from 'express';
 import { ErrorCode, ErrorCodes } from '../errors/error-codes';
 
+type RequestWithId = Request & {
+  requestId?: string;
+};
+
+type HttpExceptionResponse = {
+  message?: string | string[];
+};
+
 @Catch()
 export class HttpExceptionToApiResponseFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const req = ctx.getRequest<Request>();
+    const req = ctx.getRequest<RequestWithId>();
     const res = ctx.getResponse<Response>();
 
-    const requestId = (req as any).requestId ?? req.header('x-request-id') ?? 'unknown';
+    const requestId = req.requestId ?? req.header('x-request-id') ?? 'unknown';
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let code: ErrorCode = ErrorCodes.INTERNAL;
@@ -18,21 +26,22 @@ export class HttpExceptionToApiResponseFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      const resp = exception.getResponse() as any;
+      const resp = exception.getResponse() as HttpExceptionResponse | string;
+      const responseMessage = typeof resp === 'string' ? resp : resp.message;
 
       // ValidationPipe default shape: { message: string[]; error: string; statusCode: number }
       if (status === HttpStatus.BAD_REQUEST) {
         code = ErrorCodes.VALIDATION;
         message = 'Validation failed';
-        details = resp?.message ?? resp;
+        details = responseMessage ?? resp;
       } else if (status === HttpStatus.NOT_FOUND) {
         code = ErrorCodes.NOT_FOUND;
-        message = resp?.message ?? 'Not found';
+        message = responseMessage ?? 'Not found';
       } else if (status === HttpStatus.CONFLICT) {
         code = ErrorCodes.CONFLICT;
-        message = resp?.message ?? 'Conflict';
+        message = responseMessage ?? 'Conflict';
       } else {
-        message = resp?.message ?? exception.message ?? message;
+        message = responseMessage ?? exception.message ?? message;
         details = resp;
       }
     }
