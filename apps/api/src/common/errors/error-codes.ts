@@ -1,0 +1,6 @@
+export const ErrorCodes = {
+  VALIDATION: 'ERR_VALIDATION',
+  NOT_FOUND: 'ERR_NOT_FOUND',
+  CONFLICT: 'ERR_CONFLICT',
+  INTERNAL: 'ERR_INTERNAL',
+} as const;
