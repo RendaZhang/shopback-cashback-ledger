@@ -28,6 +28,7 @@ export class HttpExceptionToApiResponseFilter implements ExceptionFilter {
       status = exception.getStatus();
       const resp = exception.getResponse() as HttpExceptionResponse | string;
       const responseMessage = typeof resp === 'string' ? resp : resp.message;
+      const normalizedMessage = Array.isArray(responseMessage) ? responseMessage.join('; ') : responseMessage;
 
       // ValidationPipe default shape: { message: string[]; error: string; statusCode: number }
       if (status === HttpStatus.BAD_REQUEST) {
@@ -36,12 +37,12 @@ export class HttpExceptionToApiResponseFilter implements ExceptionFilter {
         details = responseMessage ?? resp;
       } else if (status === HttpStatus.NOT_FOUND) {
         code = ErrorCodes.NOT_FOUND;
-        message = responseMessage ?? 'Not found';
+        message = normalizedMessage ?? 'Not found';
       } else if (status === HttpStatus.CONFLICT) {
         code = ErrorCodes.CONFLICT;
-        message = responseMessage ?? 'Conflict';
+        message = normalizedMessage ?? 'Conflict';
       } else {
-        message = responseMessage ?? exception.message ?? message;
+        message = normalizedMessage ?? exception.message ?? message;
         details = resp;
       }
     }
