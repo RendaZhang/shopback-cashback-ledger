@@ -4,3 +4,5 @@ export const ErrorCodes = {
   CONFLICT: 'ERR_CONFLICT',
   INTERNAL: 'ERR_INTERNAL',
 } as const;
+
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
