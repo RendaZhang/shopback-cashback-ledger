@@ -6,7 +6,9 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier -w .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm -C apps/api test"
+    "test": "pnpm -C apps/api test",
+    "db:migrate": "pnpm -C packages/db run migrate:dev",
+    "db:generate": "pnpm -C packages/db run generate"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
