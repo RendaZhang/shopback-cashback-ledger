@@ -142,7 +142,7 @@ export class OrdersController {
       cashback = cashback.toDecimalPlaces(2);
 
       // Ensure ledger credit exactly once (DB unique + app-level idempotency)
-      let entry = null as any;
+      let entry: { id: string } | null = null;
       try {
         entry = await tx.ledgerEntry.create({
           data: {
@@ -153,7 +153,7 @@ export class OrdersController {
             currency: confirmed.currency,
           },
         });
-      } catch (e: any) {
+      } catch (e: unknown) {
         // unique(orderId, type) hit => already credited
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
           entry = await tx.ledgerEntry.findUnique({

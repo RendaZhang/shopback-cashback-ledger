@@ -52,6 +52,8 @@ jest.mock('@prisma/client', () => ({
 }));
 
 import { LedgerEntryType, OrderStatus, Prisma } from '@prisma/client';
+import type { IdempotencyService } from '../common/idempotency/idempotency.service';
+import type { PrismaService } from '../db/prisma.service';
 import { OrdersController } from './orders.controller';
 
 describe('OrdersController ledger credit idempotency', () => {
@@ -124,7 +126,10 @@ describe('OrdersController ledger credit idempotency', () => {
       saveResponse: jest.fn(),
     };
 
-    const controller = new OrdersController(prisma as any, idem as any);
+    const controller = new OrdersController(
+      prisma as unknown as PrismaService,
+      idem as unknown as IdempotencyService,
+    );
 
     const first = await controller.confirm(undefined, order.id);
     const second = await controller.confirm(undefined, order.id);
@@ -170,7 +175,10 @@ describe('OrdersController ledger credit idempotency', () => {
       saveResponse: jest.fn(),
     };
 
-    const controller = new OrdersController(prisma as any, idem as any);
+    const controller = new OrdersController(
+      prisma as unknown as PrismaService,
+      idem as unknown as IdempotencyService,
+    );
 
     await expect(controller.confirm(undefined, 'order-cancelled')).rejects.toBeInstanceOf(ConflictException);
   });

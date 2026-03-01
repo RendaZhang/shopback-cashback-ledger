@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
 import { PrismaService } from '../../db/prisma.service';
 
@@ -26,7 +27,7 @@ export class IdempotencyService {
     key: string;
     scope: string;
     requestHash: string;
-    responseBody: unknown;
+    responseBody: Prisma.InputJsonValue;
     ttlSeconds?: number;
   }) {
     const expiresAt =
@@ -38,14 +39,14 @@ export class IdempotencyService {
       where: { key_scope: { key: args.key, scope: args.scope } },
       update: {
         requestHash: args.requestHash,
-        responseBody: args.responseBody as any,
+        responseBody: args.responseBody,
         expiresAt,
       },
       create: {
         key: args.key,
         scope: args.scope,
         requestHash: args.requestHash,
-        responseBody: args.responseBody as any,
+        responseBody: args.responseBody,
         expiresAt,
       },
     });
