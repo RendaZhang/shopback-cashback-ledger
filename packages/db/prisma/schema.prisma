@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  CREATED
+  CONFIRMED
+  CANCELLED
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+}
+
+model Order {
+  id         String      @id @default(uuid()) @db.Uuid
+  userId     String
+  merchantId String
+  amount     Decimal     @db.Numeric(18, 2)
+  currency   String
+  status     OrderStatus @default(CREATED)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  ledgerEntries LedgerEntry[]
+
+  @@index([userId, createdAt])
+  @@index([merchantId, createdAt])
+}
+
+model CashbackRule {
+  id         String  @id @default(uuid()) @db.Uuid
+  merchantId String  @unique
+  rate       Decimal @db.Numeric(6, 4) // e.g. 0.0500 = 5%
+  cap        Decimal? @db.Numeric(18, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LedgerEntry {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String
+  orderId   String          @db.Uuid
+  type      LedgerEntryType
+  amount    Decimal         @db.Numeric(18, 2)
+  currency  String
+
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, type]) // 防重复入账（Day2/Day3 幂等关键点）
+  @@index([userId, createdAt])
+}
+
+model IdempotencyKey {
+  key          String
+  scope        String
+  requestHash  String
+  responseBody Json
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime?
+
+  @@id([key, scope])
+  @@index([expiresAt])
+}
