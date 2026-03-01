@@ -61,7 +61,7 @@ jobs:
         run: pnpm -C packages/db run generate
 
       - name: Migrate (deploy)
-        run: pnpm -C packages/db run migrate deploy
+        run: pnpm -C packages/db run migrate:deploy
 
       - name: Lint
         run: pnpm lint
