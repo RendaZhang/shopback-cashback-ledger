@@ -10,10 +10,10 @@
     "migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
-    "@prisma/client": "*"
+    "@prisma/client": "6.16.2"
   },
   "devDependencies": {
-    "prisma": "*",
-    "typescript": "*"
+    "prisma": "6.16.2",
+    "typescript": "^5.0.0"
   }
 }
