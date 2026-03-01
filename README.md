@@ -99,3 +99,35 @@ Check Balance:
 ```bash
 curl -s http://localhost:3000/users/u_1/cashback-balance
 ```
+
+### Cashback Processing Flow
+
+First set merchant cashback rule to 5%:
+
+```bash
+curl -s -X POST http://localhost:3000/merchants/m_1/cashback-rule \
+  -H 'Content-Type: application/json' \
+  -d '{"rate":0.05}'
+```
+
+Create new order (use new key):
+
+```bash
+curl -s -X POST http://localhost:3000/orders \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: create-002' \
+  -d '{"userId":"u_1","merchantId":"m_1","amount":100,"currency":"SGD"}'
+```
+
+Confirm (also use new key):
+
+```bash
+curl -s -X POST http://localhost:3000/orders/<NEW_ORDER_ID>/confirm \
+  -H 'Idempotency-Key: confirm-002'
+```
+
+Check balance (should become 5):
+
+```bash
+curl -s http://localhost:3000/users/u_1/cashback-balance
+```
