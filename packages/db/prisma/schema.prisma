@@ -22,7 +22,7 @@ model Order {
   id         String      @id @default(uuid()) @db.Uuid
   userId     String
   merchantId String
-  amount     Decimal     @db.Numeric(18, 2)
+  amount     Decimal     @db.Decimal(18, 2)
   currency   String
   status     OrderStatus @default(CREATED)
 
@@ -38,8 +38,8 @@ model Order {
 model CashbackRule {
   id         String  @id @default(uuid()) @db.Uuid
   merchantId String  @unique
-  rate       Decimal @db.Numeric(6, 4) // e.g. 0.0500 = 5%
-  cap        Decimal? @db.Numeric(18, 2)
+  rate       Decimal @db.Decimal(6, 4) // e.g. 0.0500 = 5%
+  cap        Decimal? @db.Decimal(18, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -50,7 +50,7 @@ model LedgerEntry {
   userId    String
   orderId   String          @db.Uuid
   type      LedgerEntryType
-  amount    Decimal         @db.Numeric(18, 2)
+  amount    Decimal         @db.Decimal(18, 2)
   currency  String
 
   createdAt DateTime @default(now())
