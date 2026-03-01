@@ -10,6 +10,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ledger
+          POSTGRES_PASSWORD: ledger
+          POSTGRES_DB: ledger
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ledger -d ledger"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://ledger:ledger@localhost:5432/ledger?schema=public
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,6 +56,12 @@ jobs:
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm -C packages/db run generate
+
+      - name: Migrate (deploy)
+        run: pnpm -C packages/db run migrate deploy
 
       - name: Lint
         run: pnpm lint
