@@ -4,7 +4,9 @@
   "version": "0.0.1",
   "description": "",
   "scripts": {
-    "start:dev": "tsx src/index.ts"
+    "start:dev": "tsx src/index.ts",
+    "replay:inbox": "tsx src/replay.ts inbox",
+    "replay:outbox": "tsx src/replay.ts outbox"
   },
   "dependencies": {
     "@prisma/client": "6.16.2",

@@ -218,3 +218,17 @@ Wait until attempts increase to `MAX_ATTEMPTS`, then it will change to `FAILED` 
 ```bash
 docker exec -i sb-redpanda rpk topic consume order.events.dlq -n 1
 ```
+
+Test replay functionality using the previously FAILED event evt_bad_1, reset it from FAILED back to PENDING (with attempt count reset to zero):
+
+```bash
+pnpm -C apps/worker replay:inbox -- --sourceEventId evt_bad_1 --resetAttempts true
+```
+
+Verify it changes to PENDING status with attempts=0:
+
+```bash
+docker exec -i sb-postgres psql -U ledger -d ledger -c 'SELECT * FROM "InboxEvent" LIMIT 5;'
+```
+
+Since the orderId doesn't exist, it will be retried again by the retry loop, eventually failing again and going back to DLQ (demonstrating controllable and repeatable replay verification).
