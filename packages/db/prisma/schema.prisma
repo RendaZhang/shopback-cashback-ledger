@@ -18,6 +18,12 @@ enum LedgerEntryType {
   DEBIT
 }
 
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model Order {
   id         String      @id @default(uuid()) @db.Uuid
   userId     String
@@ -71,4 +77,20 @@ model IdempotencyKey {
 
   @@id([key, scope])
   @@index([expiresAt])
+}
+
+model OutboxEvent {
+  id          String      @id @default(uuid()) @db.Uuid
+  aggregateId String
+  type        String
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+
+  attempts    Int         @default(0)
+  availableAt DateTime    @default(now()) // for retry backoff scheduling
+  createdAt   DateTime    @default(now())
+  sentAt      DateTime?
+
+  @@index([status, availableAt])
+  @@index([aggregateId, createdAt])
 }
