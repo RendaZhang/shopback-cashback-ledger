@@ -13,7 +13,7 @@ pnpm start
 
 ## Test
 
-### Database 
+### Database & MQ
 
 #### Verify PostgreSQL Data in Docker Container
 
@@ -59,6 +59,44 @@ docker exec -i sb-postgres psql -U ledger -d ledger -c 'SELECT * FROM "Order" LI
 docker exec -i sb-postgres psql -U ledger -d ledger -c "SELECT version();"
 # List environment variables (verify DB credentials/config)
 docker exec -i sb-postgres env | grep POSTGRES
+```
+
+#### Verify MQ Data in Docker Container
+
+```bash
+# Topic Management
+# List all topics
+docker exec sb-redpanda rpk topic list
+# Create a topic
+docker exec sb-redpanda rpk topic create my-topic --partitions 3 --replicas 1
+# Describe topic details
+docker exec sb-redpanda rpk topic describe my-topic
+# Delete a topic
+docker exec sb-redpanda rpk topic delete my-topic
+# Alter topic configuration
+docker exec sb-redpanda rpk topic alter-config my-topic --set retention.ms=86400000
+
+# Message Production & Consumption
+# Produce messages (interactive)
+docker exec -it sb-redpanda rpk topic produce my-topic
+# Consume messages (real-time)
+docker exec -it sb-redpanda rpk topic consume my-topic
+# Consume a certain number of messages
+docker exec -i sb-redpanda rpk topic consume my-topic -n 1
+# Consume from beginning
+docker exec sb-redpanda rpk topic consume my-topic --offset oldest
+# Consume specific number of messages
+docker exec sb-redpanda rpk topic consume my-topic -n 10
+# Consume with JSON formatting
+docker exec sb-redpanda rpk topic consume my-topic --format json
+# Produce from file
+docker exec sb-redpanda rpk topic produce my-topic -f messages.txt
+
+# Cluster Management
+# Get cluster information
+docker exec sb-redpanda rpk cluster info
+# Check cluster health
+docker exec sb-redpanda rpk cluster health
 ```
 
 ### Idempotent Order Creation API Examples
@@ -131,4 +169,32 @@ Check balance (should become 5):
 
 ```bash
 curl -s http://localhost:3000/users/u_1/cashback-balance
+```
+
+### Event Processing Workflow
+
+Trigger a New Order Confirmation (with a new idempotency key)
+
+```bash
+# create
+curl -s -X POST http://localhost:3000/orders \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: create-003' \
+  -d '{"userId":"u_2","merchantId":"m_1","amount":200,"currency":"SGD"}'
+
+# confirm (note: use a new key)
+curl -s -X POST http://localhost:3000/orders/<NEW_ORDER_ID>/confirm \
+  -H 'Idempotency-Key: confirm-003'
+```
+
+Check Topic Messages (You should see an OrderConfirmed event).
+
+```bash
+docker exec -i sb-redpanda rpk topic consume order.events -n 1
+```
+
+Check Outbox Status (Should be SENT)
+
+```bash
+docker exec -i sb-postgres psql -U ledger -d ledger -c "select id, type, status, attempts, created_at, sent_at from \"OutboxEvent\" order by created_at desc limit 5;"
 ```

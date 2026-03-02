@@ -1,0 +1,19 @@
+{
+  "name": "@sb/worker",
+  "private": true,
+  "version": "0.0.1",
+  "description": "",
+  "scripts": {
+    "start:dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.16.2",
+    "dotenv": "^17.3.1",
+    "kafkajs": "^2.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
