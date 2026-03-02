@@ -102,7 +102,7 @@ export class OrdersController {
         return cached.responseBody;
       }
 
-      const resp = await this.confirmAndCredit(id);
+      const resp = await this.confirmAndOutbox(id);
 
       await this.idem.saveResponse({
         key: idemKey,
@@ -115,10 +115,10 @@ export class OrdersController {
       return resp;
     }
 
-    return this.confirmAndCredit(id);
+    return this.confirmAndOutbox(id);
   }
 
-  private async confirmAndCredit(orderId: string) {
+  private async confirmAndOutbox(orderId: string) {
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({ where: { id: orderId } });
       if (!order) throw new ConflictException('Order not found');
@@ -128,69 +128,36 @@ export class OrdersController {
       }
 
       // confirm is idempotent: CREATED -> CONFIRMED; CONFIRMED stays CONFIRMED
-      const shouldEmitOrderConfirmed = order.status !== OrderStatus.CONFIRMED;
-      const confirmed = shouldEmitOrderConfirmed
-        ? await tx.order.update({ where: { id: orderId }, data: { status: OrderStatus.CONFIRMED } })
-        : order;
-
-      const outbox = shouldEmitOrderConfirmed
-        ? await tx.outboxEvent.create({
-            data: {
-              aggregateId: confirmed.id,
-              type: 'OrderConfirmed',
-              payload: {
-                orderId: confirmed.id,
-                userId: confirmed.userId,
-                merchantId: confirmed.merchantId,
-                amount: confirmed.amount.toString(),
-                currency: confirmed.currency,
-                confirmedAt: new Date().toISOString(),
-              },
-            },
-          })
-        : await tx.outboxEvent.findFirst({
-            where: { aggregateId: confirmed.id, type: 'OrderConfirmed' },
-            orderBy: { createdAt: 'desc' },
-          });
-
-      // cashback rule (fallback default 5%)
-      const rule = await tx.cashbackRule.findUnique({ where: { merchantId: confirmed.merchantId } });
-      const rate = rule?.rate ?? new Prisma.Decimal('0.05');
-
-      let cashback = confirmed.amount.mul(rate);
-      if (rule?.cap && cashback.greaterThan(rule.cap)) cashback = rule.cap;
-      cashback = cashback.toDecimalPlaces(2);
-
-      // Ensure ledger credit exactly once (DB unique + app-level idempotency)
-      let entry: { id: string } | null = null;
-      try {
-        entry = await tx.ledgerEntry.create({
-          data: {
-            userId: confirmed.userId,
-            orderId: confirmed.id,
-            type: LedgerEntryType.CREDIT,
-            amount: cashback,
-            currency: confirmed.currency,
-          },
-        });
-      } catch (e: unknown) {
-        // unique(orderId, type) hit => already credited
-        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-          entry = await tx.ledgerEntry.findUnique({
-            where: { orderId_type: { orderId: confirmed.id, type: LedgerEntryType.CREDIT } },
-          });
-        } else {
-          throw e;
-        }
+      // IMPORTANT: only create outbox when transitioning to CONFIRMED
+      if (order.status === OrderStatus.CONFIRMED) {
+        return { id: order.id, status: order.status, outboxEventId: null };
       }
 
-      return {
-        id: confirmed.id,
-        status: confirmed.status,
-        cashback: { amount: cashback.toNumber(), currency: confirmed.currency },
-        ledgerEntryId: entry?.id ?? null,
-        outboxEventId: outbox?.id ?? null,
-      };
+      if (order.status !== OrderStatus.CREATED) {
+        throw new ConflictException(`Cannot confirm order in status ${order.status}`);
+      }
+
+      const confirmed = await tx.order.update({
+        where: { id: orderId },
+        data: { status: OrderStatus.CONFIRMED },
+      });
+
+      const outbox = await tx.outboxEvent.create({
+        data: {
+          aggregateId: confirmed.id,
+          type: 'OrderConfirmed',
+          payload: {
+            orderId: confirmed.id,
+            userId: confirmed.userId,
+            merchantId: confirmed.merchantId,
+            amount: confirmed.amount.toString(),
+            currency: confirmed.currency,
+            confirmedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return { id: confirmed.id, status: confirmed.status, outboxEventId: outbox.id };
     });
   }
 }

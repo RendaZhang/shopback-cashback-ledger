@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient, OutboxStatus } from '@prisma/client';
 import { Kafka } from 'kafkajs';
+import { startConsumer } from './consumer';
 
 const prisma = new PrismaClient();
 
@@ -75,7 +76,7 @@ async function publishOnce() {
           where: { id: e.id },
           data: { status: OutboxStatus.FAILED },
         });
-        // Day3 Step2 我们会把 FAILED 推到 DLQ topic（或直接做 consumer-side DLQ）
+        // TODO: 我们会把 FAILED 推到 DLQ topic（或直接做 consumer-side DLQ）
       } else {
         await prisma.outboxEvent.update({
           where: { id: e.id },
@@ -92,6 +93,15 @@ async function publishOnce() {
 
 async function main() {
   await producer.connect();
+
+  // 这样一个 worker 进程同时做：**outbox publish + kafka consume 入账**；
+  // 生产上通常拆成两个 deployment。
+
+  startConsumer(prisma, kafka).catch((e) => {
+    console.error('[consumer] crashed', e);
+    process.exit(1);
+  });
+
   console.log('[worker] started', { broker, topic, pollIntervalMs, batchSize, maxAttempts });
 
   // eslint-disable-next-line no-constant-condition

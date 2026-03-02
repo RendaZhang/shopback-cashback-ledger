@@ -63,7 +63,7 @@ model LedgerEntry {
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
-  @@unique([orderId, type]) // 防重复入账（Day2/Day3 幂等关键点）
+  @@unique([orderId, type]) // 防重复入账（幂等关键点）
   @@index([userId, createdAt])
 }
 
