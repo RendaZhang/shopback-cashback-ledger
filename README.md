@@ -184,5 +184,37 @@ docker exec -i sb-redpanda rpk topic consume order.events -n 1
 Check Outbox Status (Should be SENT)
 
 ```bash
-docker exec -i sb-postgres psql -U ledger -d ledger -c "select id, type, status, attempts, created_at, sent_at from \"OutboxEvent\" order by created_at desc limit 5;"
+docker exec -i sb-postgres psql -U ledger -d ledger -c 'SELECT * FROM "OutboxEvent" LIMIT 10;'
+```
+
+### Retry & DLQ Test
+
+Start the worker:
+
+```bash
+pnpm dev:worker
+```
+
+Inject a non-existent orderId into the topic (easiest using interactive rpk):
+
+```bash
+docker exec -it sb-redpanda rpk topic produce order.events
+```
+
+Then paste a message (press Enter to send; Ctrl+D to finish):
+
+```json
+{"id":"evt_bad_1","type":"OrderConfirmed","aggregateId":"bad","payload":{"orderId":"00000000-0000-0000-0000-000000000000"}}
+```
+
+Now observe InboxEvent:
+
+```bash
+docker exec -i sb-postgres psql -U ledger -d ledger -c 'SELECT * FROM "InboxEvent" LIMIT 5;'
+```
+
+Wait until attempts increase to `MAX_ATTEMPTS`, then it will change to `FAILED` status and go to DLQ:
+
+```bash
+docker exec -i sb-redpanda rpk topic consume order.events.dlq -n 1
 ```

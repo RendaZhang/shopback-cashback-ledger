@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { PrismaClient, OutboxStatus } from '@prisma/client';
 import { Kafka } from 'kafkajs';
 import { startConsumer } from './consumer';
+import { retryInboxLoop } from './inbox-retry';
 
 const prisma = new PrismaClient();
 
@@ -99,6 +100,11 @@ async function main() {
 
   startConsumer(prisma, kafka).catch((e) => {
     console.error('[consumer] crashed', e);
+    process.exit(1);
+  });
+
+  retryInboxLoop(prisma, kafka).catch((e) => {
+    console.error('[retry] crashed', e);
     process.exit(1);
   });
 

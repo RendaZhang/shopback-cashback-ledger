@@ -24,6 +24,12 @@ enum OutboxStatus {
   FAILED
 }
 
+enum InboxStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
 model Order {
   id         String      @id @default(uuid()) @db.Uuid
   userId     String
@@ -84,6 +90,7 @@ model OutboxEvent {
   aggregateId String
   type        String
   payload     Json
+  lastError   String?
   status      OutboxStatus @default(PENDING)
 
   attempts    Int         @default(0)
@@ -93,4 +100,21 @@ model OutboxEvent {
 
   @@index([status, availableAt])
   @@index([aggregateId, createdAt])
+}
+
+model InboxEvent {
+  id            String      @id @default(uuid()) @db.Uuid
+  sourceEventId String      @unique // 对应 outbox event id（或 Kafka event id）
+  type          String
+  payload       Json
+
+  status        InboxStatus @default(PENDING)
+  attempts      Int         @default(0)
+  availableAt   DateTime    @default(now())
+  lastError     String?
+
+  createdAt     DateTime @default(now())
+  processedAt   DateTime?
+
+  @@index([status, availableAt])
 }
