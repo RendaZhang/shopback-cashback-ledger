@@ -15,8 +15,7 @@ export async function retryInboxLoop(prisma: PrismaClient, kafka: Kafka) {
   await producer.connect();
   console.log('[retry] inbox loop started', { dlqTopic, maxAttempts, batchSize });
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  for (;;) {
     const now = new Date();
     const events = await prisma.inboxEvent.findMany({
       where: { status: InboxStatus.PENDING, availableAt: { lte: now } },
@@ -26,12 +25,17 @@ export async function retryInboxLoop(prisma: PrismaClient, kafka: Kafka) {
 
     for (const e of events) {
       try {
-        await processOrderConfirmed(prisma, { orderId: (e.payload as any).orderId });
+        const payload = e.payload as { orderId?: string };
+        if (!payload.orderId) {
+          throw new Error(`Missing orderId in inbox payload for event ${e.id}`);
+        }
+
+        await processOrderConfirmed(prisma, { orderId: payload.orderId });
         await prisma.inboxEvent.update({
           where: { id: e.id },
           data: { status: InboxStatus.PROCESSED, processedAt: new Date(), lastError: null },
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         const updated = await prisma.inboxEvent.update({
           where: { id: e.id },
           data: {

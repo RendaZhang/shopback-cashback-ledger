@@ -110,8 +110,7 @@ async function main() {
 
   console.log('[worker] started', { broker, topic, pollIntervalMs, batchSize, maxAttempts });
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
+  for (;;) {
     await publishOnce();
     await new Promise((r) => setTimeout(r, pollIntervalMs));
   }

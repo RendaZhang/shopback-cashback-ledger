@@ -43,7 +43,7 @@ export async function processOrderConfirmed(prisma: PrismaClient, payload: Order
         ledgerEntryId: entry.id,
         cashback: { amount: cashback.toNumber(), currency: order.currency },
       };
-    } catch (e: any) {
+    } catch (e: unknown) {
       // unique(orderId,type) => already processed (idempotent consumer)
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         const existing = await tx.ledgerEntry.findUnique({

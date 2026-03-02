@@ -161,10 +161,10 @@ describe('OrdersController ledger credit idempotency', () => {
 
     const consumerPrisma = {
       $transaction: jest.fn(async (cb: (innerTx: typeof consumerTx) => Promise<unknown>) => cb(consumerTx)),
-    };
+    } as unknown as Parameters<typeof processOrderConfirmed>[0];
 
-    const firstConsume = await processOrderConfirmed(consumerPrisma as any, { orderId: order.id });
-    const secondConsume = await processOrderConfirmed(consumerPrisma as any, { orderId: order.id });
+    const firstConsume = await processOrderConfirmed(consumerPrisma, { orderId: order.id });
+    const secondConsume = await processOrderConfirmed(consumerPrisma, { orderId: order.id });
 
     expect(firstConsume).toEqual({
       orderId: order.id,

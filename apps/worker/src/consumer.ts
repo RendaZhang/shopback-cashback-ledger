@@ -42,7 +42,7 @@ export async function startConsumer(prisma: PrismaClient, kafka: Kafka) {
           where: { id: inbox.id },
           data: { status: InboxStatus.PROCESSED, processedAt: new Date(), lastError: null },
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         // do not throw -> avoid blocking partition; retry loop will handle PENDING rows
         console.error('[consumer] inbox created but processing failed (will retry)', {
           err: String(err),
