@@ -1,7 +1,7 @@
 {
   "name": "shopback-cashback-ledger",
   "private": true,
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.30.3",
   "scripts": {
     "lint": "eslint . --max-warnings=0",
     "format": "prettier -w .",

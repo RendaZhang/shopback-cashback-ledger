@@ -41,7 +41,7 @@ jobs:
         run: corepack enable
 
       - name: Setup pnpm
-        run: corepack prepare pnpm@9.0.0 --activate
+        run: corepack prepare pnpm@10.30.3 --activate
 
       - name: Resolve pnpm store path
         run: echo "PNPM_STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
