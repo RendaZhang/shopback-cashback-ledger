@@ -64,33 +64,14 @@ docker exec -i sb-postgres env | grep POSTGRES
 #### Verify MQ Data in Docker Container
 
 ```bash
-# Topic Management
+# Delete a topic
+docker exec sb-redpanda rpk topic delete order.events
+# Create a topic
+docker exec -i sb-redpanda rpk topic create order.events -p 1 -r 1 || true
+# Consume a certain number of messages
+docker exec -i sb-redpanda rpk topic consume order.events -n 10
 # List all topics
 docker exec sb-redpanda rpk topic list
-# Create a topic
-docker exec sb-redpanda rpk topic create my-topic --partitions 3 --replicas 1
-# Describe topic details
-docker exec sb-redpanda rpk topic describe my-topic
-# Delete a topic
-docker exec sb-redpanda rpk topic delete my-topic
-# Alter topic configuration
-docker exec sb-redpanda rpk topic alter-config my-topic --set retention.ms=86400000
-
-# Message Production & Consumption
-# Produce messages (interactive)
-docker exec -it sb-redpanda rpk topic produce my-topic
-# Consume messages (real-time)
-docker exec -it sb-redpanda rpk topic consume my-topic
-# Consume a certain number of messages
-docker exec -i sb-redpanda rpk topic consume my-topic -n 1
-# Consume from beginning
-docker exec sb-redpanda rpk topic consume my-topic --offset oldest
-# Consume specific number of messages
-docker exec sb-redpanda rpk topic consume my-topic -n 10
-# Consume with JSON formatting
-docker exec sb-redpanda rpk topic consume my-topic --format json
-# Produce from file
-docker exec sb-redpanda rpk topic produce my-topic -f messages.txt
 
 # Cluster Management
 # Get cluster information
@@ -126,7 +107,8 @@ Confirm Order (Replace <ORDER_ID> with the ID from step 1):
 ```bash
 curl -s -X POST http://localhost:3000/orders/<ORDER_ID>/confirm \
   -H 'Idempotency-Key: confirm-001'
-# Response now includes: outboxEventId (repeat confirm reuses existing event id)
+# Response now includes outboxEventId only when transitioning CREATED -> CONFIRMED.
+# NOTE: confirm only writes order status + outbox event; ledger credit is async via Kafka consumer.
 
 # Replay Confirm (Same key should return same result)
 curl -s -X POST http://localhost:3000/orders/<ORDER_ID>/confirm \
@@ -165,7 +147,13 @@ curl -s -X POST http://localhost:3000/orders/<NEW_ORDER_ID>/confirm \
   -H 'Idempotency-Key: confirm-002'
 ```
 
-Check balance (should become 5):
+Check balance immediately after confirm (should still be 0 before consumer processes event):
+
+```bash
+curl -s http://localhost:3000/users/u_1/cashback-balance
+```
+
+After worker consumes `OrderConfirmed`, check again (should become 5):
 
 ```bash
 curl -s http://localhost:3000/users/u_1/cashback-balance

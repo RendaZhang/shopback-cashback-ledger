@@ -55,6 +55,7 @@ import { LedgerEntryType, OrderStatus, Prisma } from '@prisma/client';
 import type { IdempotencyService } from '../common/idempotency/idempotency.service';
 import type { PrismaService } from '../db/prisma.service';
 import { OrdersController } from './orders.controller';
+import { processOrderConfirmed } from '../../../../packages/domain/src/process-order-confirmed';
 
 describe('OrdersController ledger credit idempotency', () => {
   afterEach(() => {
@@ -62,7 +63,7 @@ describe('OrdersController ledger credit idempotency', () => {
     jest.clearAllMocks();
   });
 
-  it('confirm credits exactly once even if called multiple times', async () => {
+  it('confirm does not credit ledger; consumer credits exactly once', async () => {
     const order = {
       id: 'order-1',
       userId: 'user-1',
@@ -105,6 +106,36 @@ describe('OrdersController ledger credit idempotency', () => {
         create: jest.fn(async () => outboxEvent),
         findFirst: jest.fn(async () => outboxEvent),
       },
+    };
+
+    // Unit test only: Prisma is fully mocked, so no real DB write happens.
+    const prisma = {
+      $transaction: jest.fn(async (cb: (innerTx: typeof tx) => Promise<unknown>) => cb(tx)),
+    };
+
+    const idem = {
+      hashRequest: jest.fn(),
+      getCachedResponse: jest.fn(),
+      saveResponse: jest.fn(),
+    };
+
+    const controller = new OrdersController(
+      prisma as unknown as PrismaService,
+      idem as unknown as IdempotencyService,
+    );
+
+    const firstConfirm = await controller.confirm(undefined, order.id);
+    const secondConfirm = await controller.confirm(undefined, order.id);
+
+    expect(firstConfirm).toEqual({ id: order.id, status: OrderStatus.CONFIRMED, outboxEventId: outboxEvent.id });
+    expect(secondConfirm).toEqual({ id: order.id, status: OrderStatus.CONFIRMED, outboxEventId: null });
+    expect(tx.outboxEvent.create).toHaveBeenCalledTimes(1);
+    expect(tx.outboxEvent.findFirst).toHaveBeenCalledTimes(0);
+
+    const consumerTx = {
+      order: {
+        findUnique: jest.fn(async () => order),
+      },
       cashbackRule: {
         findUnique: jest.fn(async () => ({
           merchantId: order.merchantId,
@@ -128,40 +159,29 @@ describe('OrdersController ledger credit idempotency', () => {
       },
     };
 
-    // Unit test only: Prisma is fully mocked, so no real DB write happens.
-    const prisma = {
-      $transaction: jest.fn(async (cb: (innerTx: typeof tx) => Promise<unknown>) => cb(tx)),
+    const consumerPrisma = {
+      $transaction: jest.fn(async (cb: (innerTx: typeof consumerTx) => Promise<unknown>) => cb(consumerTx)),
     };
 
-    const idem = {
-      hashRequest: jest.fn(),
-      getCachedResponse: jest.fn(),
-      saveResponse: jest.fn(),
-    };
+    const firstConsume = await processOrderConfirmed(consumerPrisma as any, { orderId: order.id });
+    const secondConsume = await processOrderConfirmed(consumerPrisma as any, { orderId: order.id });
 
-    const controller = new OrdersController(
-      prisma as unknown as PrismaService,
-      idem as unknown as IdempotencyService,
-    );
-
-    const first = await controller.confirm(undefined, order.id);
-    const second = await controller.confirm(undefined, order.id);
-
-    expect(first.ledgerEntryId).toBe(existingCreditEntry.id);
-    expect(second.ledgerEntryId).toBe(existingCreditEntry.id);
-    expect(first.outboxEventId).toBe(outboxEvent.id);
-    expect(second.outboxEventId).toBe(outboxEvent.id);
-    expect(tx.outboxEvent.create).toHaveBeenCalledTimes(1);
-    expect(tx.outboxEvent.findFirst).toHaveBeenCalledTimes(1);
-    expect(tx.ledgerEntry.create).toHaveBeenCalledTimes(2);
-    expect(tx.ledgerEntry.findUnique).toHaveBeenCalledTimes(1);
-    expect(tx.ledgerEntry.findUnique).toHaveBeenCalledWith({
-      where: {
-        orderId_type: {
-          orderId: order.id,
-          type: LedgerEntryType.CREDIT,
-        },
-      },
+    expect(firstConsume).toEqual({
+      orderId: order.id,
+      credited: true,
+      ledgerEntryId: existingCreditEntry.id,
+      cashback: { amount: 5, currency: order.currency },
+    });
+    expect(secondConsume).toEqual({
+      orderId: order.id,
+      credited: false,
+      ledgerEntryId: existingCreditEntry.id,
+      cashback: { amount: 5, currency: order.currency },
+    });
+    expect(consumerTx.ledgerEntry.create).toHaveBeenCalledTimes(2);
+    expect(consumerTx.ledgerEntry.findUnique).toHaveBeenCalledTimes(1);
+    expect(consumerTx.ledgerEntry.findUnique).toHaveBeenCalledWith({
+      where: { orderId_type: { orderId: order.id, type: LedgerEntryType.CREDIT } },
     });
   });
 
