@@ -7,7 +7,7 @@ A simplified cashback/rewards ledger system for backend/system-design interviews
 ```bash
 make up
 cp apps/api/.env.example apps/api/.env
-pnpm -C apps/api start:dev
+pnpm start
 # open http://localhost:3000/docs
 ```
 
@@ -88,6 +88,7 @@ Confirm Order (Replace <ORDER_ID> with the ID from step 1):
 ```bash
 curl -s -X POST http://localhost:3000/orders/<ORDER_ID>/confirm \
   -H 'Idempotency-Key: confirm-001'
+# Response now includes: outboxEventId (repeat confirm reuses existing event id)
 
 # Replay Confirm (Same key should return same result)
 curl -s -X POST http://localhost:3000/orders/<ORDER_ID>/confirm \

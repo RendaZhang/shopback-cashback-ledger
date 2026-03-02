@@ -128,10 +128,30 @@ export class OrdersController {
       }
 
       // confirm is idempotent: CREATED -> CONFIRMED; CONFIRMED stays CONFIRMED
-      const confirmed =
-        order.status === OrderStatus.CONFIRMED
-          ? order
-          : await tx.order.update({ where: { id: orderId }, data: { status: OrderStatus.CONFIRMED } });
+      const shouldEmitOrderConfirmed = order.status !== OrderStatus.CONFIRMED;
+      const confirmed = shouldEmitOrderConfirmed
+        ? await tx.order.update({ where: { id: orderId }, data: { status: OrderStatus.CONFIRMED } })
+        : order;
+
+      const outbox = shouldEmitOrderConfirmed
+        ? await tx.outboxEvent.create({
+            data: {
+              aggregateId: confirmed.id,
+              type: 'OrderConfirmed',
+              payload: {
+                orderId: confirmed.id,
+                userId: confirmed.userId,
+                merchantId: confirmed.merchantId,
+                amount: confirmed.amount.toString(),
+                currency: confirmed.currency,
+                confirmedAt: new Date().toISOString(),
+              },
+            },
+          })
+        : await tx.outboxEvent.findFirst({
+            where: { aggregateId: confirmed.id, type: 'OrderConfirmed' },
+            orderBy: { createdAt: 'desc' },
+          });
 
       // cashback rule (fallback default 5%)
       const rule = await tx.cashbackRule.findUnique({ where: { merchantId: confirmed.merchantId } });
@@ -169,6 +189,7 @@ export class OrdersController {
         status: confirmed.status,
         cashback: { amount: cashback.toNumber(), currency: confirmed.currency },
         ledgerEntryId: entry?.id ?? null,
+        outboxEventId: outbox?.id ?? null,
       };
     });
   }

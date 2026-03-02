@@ -84,6 +84,15 @@ describe('OrdersController ledger credit idempotency', () => {
       createdAt: new Date(),
     };
 
+    const outboxEvent = {
+      id: 'outbox-1',
+      aggregateId: order.id,
+      type: 'OrderConfirmed',
+      payload: {},
+      createdAt: new Date(),
+      processedAt: null,
+    };
+
     const tx = {
       order: {
         findUnique: jest.fn(async () => order),
@@ -91,6 +100,10 @@ describe('OrdersController ledger credit idempotency', () => {
           order.status = OrderStatus.CONFIRMED;
           return order;
         }),
+      },
+      outboxEvent: {
+        create: jest.fn(async () => outboxEvent),
+        findFirst: jest.fn(async () => outboxEvent),
       },
       cashbackRule: {
         findUnique: jest.fn(async () => ({
@@ -136,6 +149,10 @@ describe('OrdersController ledger credit idempotency', () => {
 
     expect(first.ledgerEntryId).toBe(existingCreditEntry.id);
     expect(second.ledgerEntryId).toBe(existingCreditEntry.id);
+    expect(first.outboxEventId).toBe(outboxEvent.id);
+    expect(second.outboxEventId).toBe(outboxEvent.id);
+    expect(tx.outboxEvent.create).toHaveBeenCalledTimes(1);
+    expect(tx.outboxEvent.findFirst).toHaveBeenCalledTimes(1);
     expect(tx.ledgerEntry.create).toHaveBeenCalledTimes(2);
     expect(tx.ledgerEntry.findUnique).toHaveBeenCalledTimes(1);
     expect(tx.ledgerEntry.findUnique).toHaveBeenCalledWith({
