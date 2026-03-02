@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient, InboxStatus, OutboxStatus } from '@prisma/client';
+import { PrismaClient, InboxStatus, OutboxStatus, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -32,10 +32,10 @@ async function replayInbox(args: Args) {
   const limit = Number(args.limit ?? '100');
   const resetAttempts = (args.resetAttempts ?? 'false') === 'true';
 
-  const where = sourceEventId ? { sourceEventId } : { status };
+  const where: Prisma.InboxEventWhereInput = sourceEventId ? { sourceEventId } : { status };
 
   const rows = await prisma.inboxEvent.findMany({
-    where: where as any,
+    where,
     orderBy: { createdAt: 'asc' },
     take: limit,
   });
