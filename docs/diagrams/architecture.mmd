@@ -1,19 +1,19 @@
 flowchart LR
-  Client[Client / ShopBack App] -->|REST| API[NestJS API]
+  Client["Client / ShopBack App"] -->|REST| API["NestJS API"]
 
-  API -->|Prisma| PG[(Postgres)]
-  API -->|Tx write| OUTBOX[(OutboxEvent)]
-  OUTBOX -->|poll| Publisher[Worker: Outbox Publisher]
-  Publisher -->|Kafka produce| RP[(Redpanda / Kafka)]
-  RP -->|Kafka consume| Consumer[Worker: Consumer]
-  Consumer -->|upsert| INBOX[(InboxEvent)]
-  Consumer -->|process| Ledger[(LedgerEntry)]
-  Consumer -->|fail| Retry[Retry Loop\n(backoff + attempts)]
+  API -->|Prisma| PG[("Postgres")]
+  API -->|Tx write| OUTBOX[("OutboxEvent")]
+  OUTBOX -->|poll| Publisher["Worker: Outbox Publisher"]
+  Publisher -->|Kafka produce| RP[("Redpanda / Kafka")]
+  RP -->|Kafka consume| Consumer["Worker: Consumer"]
+  Consumer -->|upsert| INBOX[("InboxEvent")]
+  Consumer -->|process| Ledger[("LedgerEntry")]
+  Consumer -->|fail| Retry["Retry Loop<br/>(backoff + attempts)"]
   Retry -->|reprocess| Ledger
-  Retry -->|max attempts| DLQ[(DLQ Topic)]
+  Retry -->|max attempts| DLQ[("DLQ Topic")]
 
   subgraph Observability
-    Logs[JSON Logs + requestId/correlationId]
+    Logs["JSON Logs + requestId/correlationId"]
   end
   API -.-> Logs
   Publisher -.-> Logs

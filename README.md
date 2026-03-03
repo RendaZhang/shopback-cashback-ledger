@@ -260,6 +260,6 @@ flowchart LR
 
 ## Docs
 
-* [Architecture Flowchart Diagram](docs\diagrams\architecture.mmd)
-* [Order Confirmation Sequence Diagram](docs\diagrams\sequence-confirm.mmd)
-* [Retry Loop & DLQ Sequence Diagram](docs\diagrams\sequence-failure.mmd)
+* [Architecture Flowchart Diagram](docs/diagrams/architecture.mmd)
+* [Order Confirmation Sequence Diagram](docs/diagrams/sequence-confirm.mmd)
+* [Retry Loop & DLQ Sequence Diagram](docs/diagrams/sequence-failure.mmd)
