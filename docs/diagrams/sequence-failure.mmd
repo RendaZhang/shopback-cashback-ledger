@@ -1,0 +1,32 @@
+sequenceDiagram
+  autonumber
+  participant W as Worker Consumer
+  participant DB as Postgres
+  participant R as Retry Loop
+  participant K as Redpanda/Kafka
+  participant D as DLQ Topic
+  participant Ops as Operator
+
+  W->>DB: upsert InboxEvent(PENDING)
+  W->>DB: processOrderConfirmed()
+  DB-->>W: error (e.g., order not found)
+  W-->>DB: keep InboxEvent PENDING (will retry)
+
+  loop until success or max attempts
+    R->>DB: select PENDING where availableAt<=now
+    R->>DB: processOrderConfirmed()
+    alt success
+      R->>DB: mark PROCESSED
+    else fail
+      R->>DB: attempts++ , availableAt=now+backoff
+    end
+  end
+
+  alt max attempts reached
+    R->>DB: mark FAILED + lastError
+    R->>K: produce to DLQ
+    K->>D: DLQ message stored
+  end
+
+  Ops->>DB: replay CLI sets FAILED->PENDING (availableAt=now)
+  R->>DB: reprocess

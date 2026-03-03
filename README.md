@@ -232,3 +232,34 @@ docker exec -i sb-postgres psql -U ledger -d ledger -c 'SELECT * FROM "InboxEven
 ```
 
 Since the orderId doesn't exist, it will be retried again by the retry loop, eventually failing again and going back to DLQ (demonstrating controllable and repeatable replay verification).
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Client[Client] -->|REST| API[NestJS API]
+  API -->|Prisma| PG[(Postgres)]
+  API -->|Tx write| OUTBOX[(OutboxEvent)]
+  OUTBOX -->|poll| Publisher[Worker: Outbox Publisher]
+  Publisher -->|produce| RP[(Redpanda/Kafka)]
+  RP -->|consume| Consumer[Worker: Consumer]
+  Consumer -->|upsert| INBOX[(InboxEvent)]
+  Consumer -->|idempotent credit| Ledger[(LedgerEntry)]
+  Consumer -->|retry/backoff| INBOX
+  INBOX -->|max attempts| DLQ[(DLQ)]
+```
+
+## Key flows
+
+* `POST /orders` (optional Idempotency-Key)
+* `POST /orders/{id}/confirm`:
+  * TX: confirm order + write OutboxEvent
+  * worker publishes to Kafka
+  * consumer writes InboxEvent + credits LedgerEntry (idempotent)
+* `GET /users/{id}/cashback-balance`: aggregated from ledger
+
+## Docs
+
+* [Architecture Flowchart Diagram](docs\diagrams\architecture.mmd)
+* [Order Confirmation Sequence Diagram](docs\diagrams\sequence-confirm.mmd)
+* [Retry Loop & DLQ Sequence Diagram](docs\diagrams\sequence-failure.mmd)

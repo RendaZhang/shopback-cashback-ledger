@@ -1,0 +1,24 @@
+sequenceDiagram
+  autonumber
+  participant C as Client
+  participant A as API (NestJS)
+  participant DB as Postgres
+  participant O as Outbox Publisher
+  participant K as Redpanda/Kafka
+  participant W as Worker Consumer
+  participant I as InboxEvent
+  participant L as LedgerEntry
+
+  C->>A: POST /orders/{id}/confirm (Idempotency-Key)
+  A->>DB: TX: update Order CREATED->CONFIRMED
+  A->>DB: TX: insert OutboxEvent(type=OrderConfirmed, payload)
+  A-->>C: 201 CONFIRMED + outboxEventId
+
+  O->>DB: poll OutboxEvent PENDING
+  O->>K: produce OrderConfirmed(order.events)
+  O->>DB: mark OutboxEvent SENT
+
+  W->>K: consume OrderConfirmed
+  W->>DB: upsert InboxEvent(sourceEventId) (dedupe)
+  W->>DB: process -> insert LedgerEntry(CREDIT) (unique(orderId,type))
+  W->>DB: mark InboxEvent PROCESSED
