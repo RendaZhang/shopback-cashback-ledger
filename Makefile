@@ -14,3 +14,7 @@ logs:
 
 reset:
 	$(COMPOSE) down -v
+
+docker-build:
+	docker build -f infra/docker/Dockerfile.api -t sb-ledger-api:dev .
+	docker build -f infra/docker/Dockerfile.worker -t sb-ledger-worker:dev .

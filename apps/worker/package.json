@@ -6,7 +6,9 @@
   "scripts": {
     "start:dev": "tsx src/index.ts",
     "replay:inbox": "tsx src/replay.ts inbox",
-    "replay:outbox": "tsx src/replay.ts outbox"
+    "replay:outbox": "tsx src/replay.ts outbox",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@prisma/client": "6.16.2",

@@ -1,6 +1,6 @@
 import { Kafka } from 'kafkajs';
 import { InboxStatus, PrismaClient } from '@prisma/client';
-import { processOrderConfirmed } from '../../../packages/domain/src/process-order-confirmed';
+import { processOrderConfirmed } from './handlers/process-order-confirmed';
 
 export async function startConsumer(prisma: PrismaClient, kafka: Kafka) {
   const topic = process.env.EVENT_TOPIC ?? 'order.events';
