@@ -11,9 +11,6 @@ importers:
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.3
-      '@prisma/client':
-        specifier: 6.16.2
-        version: 6.16.2(prisma@6.16.2(typescript@5.9.3))(typescript@5.9.3)
       eslint:
         specifier: ^9.0.0
         version: 9.39.3(jiti@2.6.1)
@@ -47,9 +44,6 @@ importers:
       '@nestjs/swagger':
         specifier: ^11.2.6
         version: 11.2.6(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)
-      '@prisma/client':
-        specifier: 6.16.2
-        version: 6.16.2(prisma@6.16.2(typescript@5.9.3))(typescript@5.9.3)
       '@sb/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -147,9 +141,9 @@ importers:
 
   apps/worker:
     dependencies:
-      '@prisma/client':
-        specifier: 6.16.2
-        version: 6.16.2(prisma@6.16.2(typescript@5.9.3))(typescript@5.9.3)
+      '@sb/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
@@ -172,10 +166,10 @@ importers:
       '@prisma/client':
         specifier: 6.16.2
         version: 6.16.2(prisma@6.16.2(typescript@5.9.3))(typescript@5.9.3)
-    devDependencies:
       prisma:
         specifier: 6.16.2
         version: 6.16.2(typescript@5.9.3)
+    devDependencies:
       typescript:
         specifier: ^5.0.0
         version: 5.9.3

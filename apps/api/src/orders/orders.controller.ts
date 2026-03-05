@@ -1,7 +1,7 @@
 import { Body, ConflictException, Controller, Headers, Param, Post, Req } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, Prisma } from '@sb/db';
 import { PrismaService } from '../db/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { IdempotencyService } from '../common/idempotency/idempotency.service';

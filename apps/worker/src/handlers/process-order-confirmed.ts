@@ -1,4 +1,4 @@
-import { LedgerEntryType, OrderStatus, Prisma, PrismaClient } from '@prisma/client';
+import { LedgerEntryType, OrderStatus, Prisma, PrismaClient } from '@sb/db';
 
 export type OrderConfirmedPayload = {
   orderId: string;

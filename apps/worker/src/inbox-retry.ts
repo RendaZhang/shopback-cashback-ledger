@@ -1,5 +1,5 @@
 import { Kafka } from 'kafkajs';
-import { InboxStatus, PrismaClient } from '@prisma/client';
+import { InboxStatus, PrismaClient } from '@sb/db';
 import { processOrderConfirmed } from './handlers/process-order-confirmed';
 
 const dlqTopic = process.env.DLQ_TOPIC ?? 'order.events.dlq';

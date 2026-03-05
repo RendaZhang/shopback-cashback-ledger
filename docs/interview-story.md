@@ -11,6 +11,7 @@ ShopBack-like systems confirm orders and later credit cashback. Key risks:
 
 ## 1) High-level architecture (show architecture diagram)
 
+- API and worker both consume Prisma through `@sb/db` (shared schema + generated client)
 - API writes to Postgres via Prisma
 - Confirm order is transactional:
   - update Order status
@@ -56,10 +57,16 @@ Replay CLI:
 
 - move FAILED back to PENDING to re-run after fix
 
-## 5) Trade-offs / next steps
+## 5) Why this Prisma + migration runtime contract?
+
+- Prisma client is generated at image build time for both API and worker
+- API can run `prisma migrate deploy` on startup (`RUN_DB_MIGRATION=true`)
+- No dedicated migration Job is required in kind/local setups
+- This keeps deployment simpler while avoiding missing-Prisma runtime failures
+
+## 6) Trade-offs / next steps
 
 - Split publisher and consumer into separate deployments
 - Add tracing (OTel) and metrics (RED + lag/backlog)
 - Reconciliation job: compare Orders vs Ledger for audit
 - Partitioning/sharding strategy for large scale ledger
-

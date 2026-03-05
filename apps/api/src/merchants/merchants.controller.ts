@@ -1,6 +1,6 @@
 import { Body, Controller, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@sb/db';
 import { PrismaService } from '../db/prisma.service';
 import { UpsertCashbackRuleDto } from './dto/upsert-cashback-rule.dto';
 

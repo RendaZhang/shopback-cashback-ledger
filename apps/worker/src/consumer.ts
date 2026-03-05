@@ -1,5 +1,5 @@
 import { Kafka } from 'kafkajs';
-import { InboxStatus, PrismaClient } from '@prisma/client';
+import { InboxStatus, PrismaClient } from '@sb/db';
 import { processOrderConfirmed } from './handlers/process-order-confirmed';
 
 export async function startConsumer(prisma: PrismaClient, kafka: Kafka) {

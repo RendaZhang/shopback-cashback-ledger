@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: sb-ledger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: sb-ledger-worker:dev
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SERVICE_NAME
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: SERVICE_NAME_WORKER } }
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: sb-ledger-secret, key: DATABASE_URL } }
+            - name: KAFKA_BROKER
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: KAFKA_BROKER } }
+
+            - name: EVENT_TOPIC
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: EVENT_TOPIC } }
+            - name: DLQ_TOPIC
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: DLQ_TOPIC } }
+            - name: CONSUMER_GROUP
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: CONSUMER_GROUP } }
+
+            - name: POLL_INTERVAL_MS
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: POLL_INTERVAL_MS } }
+            - name: BATCH_SIZE
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: BATCH_SIZE } }
+            - name: MAX_ATTEMPTS
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: MAX_ATTEMPTS } }
+            - name: RETRY_POLL_INTERVAL_MS
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: RETRY_POLL_INTERVAL_MS } }
+            - name: RETRY_BATCH_SIZE
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: RETRY_BATCH_SIZE } }

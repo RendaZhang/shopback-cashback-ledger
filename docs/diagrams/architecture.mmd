@@ -1,16 +1,26 @@
 flowchart LR
   Client["Client / ShopBack App"] -->|REST| API["NestJS API"]
 
+  subgraph Shared
+    DBPkg["@sb/db<br/>(Prisma schema + generated client + migrations)"]
+  end
+
+  API -->|uses| DBPkg
+  Worker["Worker Process"] -->|uses| DBPkg
+
   API -->|Prisma| PG[("Postgres")]
   API -->|Tx write| OUTBOX[("OutboxEvent")]
-  OUTBOX -->|poll| Publisher["Worker: Outbox Publisher"]
+  OUTBOX -->|poll| Publisher["Outbox Publisher"]
   Publisher -->|Kafka produce| RP[("Redpanda / Kafka")]
-  RP -->|Kafka consume| Consumer["Worker: Consumer"]
+  RP -->|Kafka consume| Consumer["Worker Consumer"]
   Consumer -->|upsert| INBOX[("InboxEvent")]
   Consumer -->|process| Ledger[("LedgerEntry")]
   Consumer -->|fail| Retry["Retry Loop<br/>(backoff + attempts)"]
   Retry -->|reprocess| Ledger
   Retry -->|max attempts| DLQ[("DLQ Topic")]
+
+  API -->|startup (optional)| Migrate["prisma migrate deploy<br/>RUN_DB_MIGRATION=true"]
+  Migrate --> PG
 
   subgraph Observability
     Logs["JSON Logs + requestId/correlationId"]

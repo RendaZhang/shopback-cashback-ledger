@@ -1,0 +1,9 @@
+resources:
+  - namespace.yaml
+  - config.yaml
+  - secret.yaml
+  - postgres.yaml
+  - redis.yaml
+  - redpanda.yaml
+  - api.yaml
+  - worker.yaml

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient, InboxStatus, OutboxStatus, Prisma } from '@prisma/client';
+import { PrismaClient, InboxStatus, OutboxStatus, Prisma } from '@sb/db';
 
 const prisma = new PrismaClient();
 

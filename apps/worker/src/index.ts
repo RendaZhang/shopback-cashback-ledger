@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient, OutboxStatus } from '@prisma/client';
+import { Prisma, PrismaClient, OutboxStatus } from '@sb/db';
 import { Kafka } from 'kafkajs';
 import { startConsumer } from './consumer';
 import { retryInboxLoop } from './inbox-retry';
@@ -23,6 +23,14 @@ function backoffMs(attempts: number) {
   // 1s, 2s, 4s, 8s ... cap 30s
   const ms = Math.min(30_000, 1000 * Math.pow(2, Math.max(0, attempts)));
   return ms;
+}
+
+function isRetryableDbError(err: unknown) {
+  if (err instanceof Prisma.PrismaClientInitializationError) return true;
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    return ['P1001', 'P1003', 'P2021', 'P2022'].includes(err.code);
+  }
+  return false;
 }
 
 async function publishOnce() {
@@ -97,7 +105,6 @@ async function main() {
 
   // 这样一个 worker 进程同时做：**outbox publish + kafka consume 入账**；
   // 生产上通常拆成两个 deployment。
-
   startConsumer(prisma, kafka).catch((e) => {
     console.error('[consumer] crashed', e);
     process.exit(1);
@@ -111,7 +118,15 @@ async function main() {
   console.log('[worker] started', { broker, topic, pollIntervalMs, batchSize, maxAttempts });
 
   for (;;) {
-    await publishOnce();
+    try {
+      await publishOnce();
+    } catch (err: unknown) {
+      if (isRetryableDbError(err)) {
+        console.warn('[outbox] transient db issue, will retry', { err: String(err) });
+      } else {
+        console.error('[outbox] unexpected publish loop error', { err });
+      }
+    }
     await new Promise((r) => setTimeout(r, pollIntervalMs));
   }
 }

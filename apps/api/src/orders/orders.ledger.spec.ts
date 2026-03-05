@@ -41,7 +41,7 @@ class MockPrismaClientKnownRequestError extends Error {
   }
 }
 
-jest.mock('@prisma/client', () => ({
+jest.mock('@sb/db', () => ({
   PrismaClient: class PrismaClient {},
   LedgerEntryType: { CREDIT: 'CREDIT' },
   OrderStatus: { CREATED: 'CREATED', CONFIRMED: 'CONFIRMED', CANCELLED: 'CANCELLED' },
@@ -51,7 +51,7 @@ jest.mock('@prisma/client', () => ({
   },
 }));
 
-import { LedgerEntryType, OrderStatus, Prisma } from '@prisma/client';
+import { LedgerEntryType, OrderStatus, Prisma } from '@sb/db';
 import type { IdempotencyService } from '../common/idempotency/idempotency.service';
 import type { PrismaService } from '../db/prisma.service';
 import { OrdersController } from './orders.controller';

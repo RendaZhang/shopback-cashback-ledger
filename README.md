@@ -1,275 +1,198 @@
 # shopback-cashback-ledger
 
-A simplified cashback/rewards ledger system for backend/system-design interviews.
+A simplified cashback/rewards ledger system for backend and system-design interviews.
+
+## What This Project Demonstrates
+
+- Contract-first API design with a consistent response envelope
+- Idempotent order creation and confirmation (`Idempotency-Key`)
+- Outbox pattern for reliable event publishing
+- Inbox + retry + DLQ flow for at-least-once consumers
+- Prisma + PostgreSQL data model for order and ledger consistency
+
+## Tech Stack
+
+- API: NestJS
+- Worker: Node.js + TypeScript
+- Database: PostgreSQL + Prisma
+- Cache: Redis
+- Event streaming: Redpanda (Kafka API)
+- Local infra: Docker Compose
+- Kubernetes: kind + kustomize
+
+## Repository Layout
+
+```text
+apps/
+  api/        # NestJS HTTP API
+  worker/     # outbox publisher + consumer + replay CLI
+packages/
+  db/         # Prisma schema, migrations, generated client (@sb/db)
+infra/
+  docker/     # Dockerfiles for API and worker
+  docker-compose/
+  k8s/
+docs/
+```
+
+## Prerequisites
+
+- Node.js 22+
+- pnpm 10+
+- Docker
+- Optional for k8s: `kind`, `kubectl`
 
 ## Quickstart (Local)
 
+1. Install dependencies:
+
 ```bash
-make up
-cp apps/api/.env.example apps/api/.env
-pnpm start
-# open http://localhost:3000/docs
+pnpm install
 ```
 
-## Docker Build
+2. Start infra:
 
-Build context must be the repository root (so pnpm workspace files can be copied):
+```bash
+make up
+```
+
+3. Prepare env files:
+
+```bash
+cp apps/api/.env.example apps/api/.env
+cp apps/worker/.env.example apps/worker/.env
+```
+
+4. Generate Prisma client and apply migrations:
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+```
+
+5. Create topics:
+
+```bash
+docker exec -i sb-redpanda rpk topic create order.events -p 1 -r 1 || true
+docker exec -i sb-redpanda rpk topic create order.events.dlq -p 1 -r 1 || true
+docker exec -i sb-redpanda rpk topic list
+```
+
+6. Run API and worker in separate terminals:
+
+```bash
+pnpm dev:api
+pnpm dev:worker
+```
+
+7. Open Swagger:
+
+- [http://localhost:3000/docs](http://localhost:3000/docs)
+
+## Local API Smoke Test
+
+Create order:
+
+```bash
+curl -s -X POST http://localhost:3000/orders \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: create-001' \
+  -d '{"userId":"u_1","merchantId":"m_1","amount":100,"currency":"SGD"}'
+```
+
+Confirm order:
+
+```bash
+curl -s -X POST http://localhost:3000/orders/<ORDER_ID>/confirm \
+  -H 'Idempotency-Key: confirm-001'
+```
+
+Read balance:
+
+```bash
+curl -s http://localhost:3000/users/u_1/cashback-balance
+```
+
+## Local kind + Kubernetes Deployment
+
+1. Create cluster:
+
+```bash
+kind create cluster --name sb-ledger --config infra/k8s/kind-config.yaml
+kubectl cluster-info
+```
+
+2. Build images from repository root:
 
 ```bash
 make docker-build
 ```
 
-These Dockerfiles use multi-stage builds + `pnpm deploy --prod` to reduce runtime image size and keep only production dependencies.
-
-## Test
-
-### Database & MQ
-
-#### Verify PostgreSQL Data in Docker Container
-
-Method 1: Interactive Access (Recommended for Ad-hoc Queries).
-
-Access the PostgreSQL interactive terminal (`psql`) directly inside the container for flexible, real-time database inspection.
+3. Load images into kind:
 
 ```bash
-# Step 1: Enter the container's psql terminal
-docker exec -it sb-postgres psql -U ledger -U ledger
-
-# Step 2: Common psql Commands (Inside the Terminal)
-# List all databases
-\l
-# List all database users/roles
-\du
-# View current connection information
-\conninfo
-# Switch to a target database 
-\c ledger
-# List all tables in current database
-\dt
-# Show detailed structure of a table
-\d <table_name>
-# Query table data (example)
-SELECT * FROM "Order" LIMIT 10;
-# Exit the psql terminal
-\q
+kind load docker-image sb-ledger-api:dev --name sb-ledger
+kind load docker-image sb-ledger-worker:dev --name sb-ledger
 ```
 
-Method 2: One-Line Quick Checks (Recommended for Scripts/Automation).
-
-Run direct, non-interactive commands to get specific database information without entering the psql terminal (ideal for CI/CD or quick validation).
+4. Deploy manifests:
 
 ```bash
-# List all databases in the PostgreSQL instance
-docker exec -i sb-postgres psql -U ledger -d ledger -c "\l"
-# List all tables in the "ledger" database (your target DB)
-docker exec -i sb-postgres psql -U ledger -d ledger -c "\dt"
-# Query sample data from a table (e.g., first 5 rows of "Order")
-docker exec -i sb-postgres psql -U ledger -d ledger -c 'SELECT * FROM "Order" LIMIT 5;'
-# Check PostgreSQL server version
-docker exec -i sb-postgres psql -U ledger -d ledger -c "SELECT version();"
-# List environment variables (verify DB credentials/config)
-docker exec -i sb-postgres env | grep POSTGRES
+kubectl apply -k infra/k8s/base
+kubectl -n sb-ledger get pods
 ```
 
-#### Verify MQ Data in Docker Container
+5. Create Kafka topics in-cluster:
 
 ```bash
-# Delete a topic
-docker exec sb-redpanda rpk topic delete order.events
-# Create a topic
-docker exec -i sb-redpanda rpk topic create order.events -p 1 -r 1 || true
-# Consume a certain number of messages
-docker exec -i sb-redpanda rpk topic consume order.events -n 10
-# List all topics
-docker exec sb-redpanda rpk topic list
-
-# Cluster Management
-# Get cluster information
-docker exec sb-redpanda rpk cluster info
-# Check cluster health
-docker exec sb-redpanda rpk cluster health
+kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events -p 1 -r 1 || true
+kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events.dlq -p 1 -r 1 || true
+kubectl -n sb-ledger exec deploy/redpanda -- rpk topic list
 ```
 
-### Idempotent Order Creation API Examples
+6. Open Swagger:
+
+- [http://localhost:30080/docs](http://localhost:30080/docs)
+
+## Prisma and Migration Runtime Contract
+
+- Prisma schema and generated client live in `packages/db` and are consumed via `@sb/db`.
+- Both Docker images run `pnpm -C packages/db run generate` during build, so Prisma client is included in the image at build time.
+- API startup can run schema migrations via `prisma migrate deploy` when `RUN_DB_MIGRATION=true`.
+- Kubernetes currently enables this in `infra/k8s/base/api.yaml`.
+- There is no dedicated `db-migrate-job` and no Prisma initContainer in API/worker deployments.
+
+## Useful Commands
+
+Docker Compose:
 
 ```bash
-# 1) Create Order (with Idempotency Key)
-curl -s -X POST http://localhost:3000/orders \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: create-001' \
-  -d '{"userId":"u_1","merchantId":"m_1","amount":100.5,"currency":"SGD"}'
-
-# 2) Repeat Same Request (should return same order ID)
-curl -s -X POST http://localhost:3000/orders \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: create-001' \
-  -d '{"userId":"u_1","merchantId":"m_1","amount":100.5,"currency":"SGD"}'
-
-# 3) Reuse Same Key with Different Body (should return 409 Conflict)
-curl -i -X POST http://localhost:3000/orders \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: create-001' \
-  -d '{"userId":"u_1","merchantId":"m_1","amount":999,"currency":"SGD"}'
+make ps
+make logs
+make down
+make reset
 ```
 
-Confirm Order (Replace <ORDER_ID> with the ID from step 1):
+Kubernetes:
 
 ```bash
-curl -s -X POST http://localhost:3000/orders/<ORDER_ID>/confirm \
-  -H 'Idempotency-Key: confirm-001'
-# Response now includes outboxEventId only when transitioning CREATED -> CONFIRMED.
-# NOTE: confirm only writes order status + outbox event; ledger credit is async via Kafka consumer.
-
-# Replay Confirm (Same key should return same result)
-curl -s -X POST http://localhost:3000/orders/<ORDER_ID>/confirm \
-  -H 'Idempotency-Key: confirm-001'
+kubectl -n sb-ledger get pods
+kubectl -n sb-ledger logs deploy/api --tail=200
+kubectl -n sb-ledger logs deploy/worker --tail=200
 ```
 
-Check Balance:
+## Quality Commands
 
 ```bash
-curl -s http://localhost:3000/users/u_1/cashback-balance
+pnpm lint
+pnpm typecheck
+pnpm test
 ```
 
-### Cashback Processing Flow
+## Further Documentation
 
-First set merchant cashback rule to 5%:
-
-```bash
-curl -s -X POST http://localhost:3000/merchants/m_1/cashback-rule \
-  -H 'Content-Type: application/json' \
-  -d '{"rate":0.05}'
-```
-
-Create new order (use new key):
-
-```bash
-curl -s -X POST http://localhost:3000/orders \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: create-002' \
-  -d '{"userId":"u_1","merchantId":"m_1","amount":100,"currency":"SGD"}'
-```
-
-Confirm (also use new key):
-
-```bash
-curl -s -X POST http://localhost:3000/orders/<NEW_ORDER_ID>/confirm \
-  -H 'Idempotency-Key: confirm-002'
-```
-
-Check balance immediately after confirm (should still be 0 before consumer processes event):
-
-```bash
-curl -s http://localhost:3000/users/u_1/cashback-balance
-```
-
-After worker consumes `OrderConfirmed`, check again (should become 5):
-
-```bash
-curl -s http://localhost:3000/users/u_1/cashback-balance
-```
-
-### Event Processing Workflow
-
-Trigger a New Order Confirmation (with a new idempotency key)
-
-```bash
-# create
-curl -s -X POST http://localhost:3000/orders \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: create-003' \
-  -d '{"userId":"u_2","merchantId":"m_1","amount":200,"currency":"SGD"}'
-
-# confirm (note: use a new key)
-curl -s -X POST http://localhost:3000/orders/<NEW_ORDER_ID>/confirm \
-  -H 'Idempotency-Key: confirm-003'
-```
-
-Check Topic Messages (You should see an OrderConfirmed event).
-
-```bash
-docker exec -i sb-redpanda rpk topic consume order.events -n 1
-```
-
-Check Outbox Status (Should be SENT)
-
-```bash
-docker exec -i sb-postgres psql -U ledger -d ledger -c 'SELECT * FROM "OutboxEvent" LIMIT 10;'
-```
-
-### Retry & DLQ Test
-
-Start the worker:
-
-```bash
-pnpm dev:worker
-```
-
-Inject a non-existent orderId into the topic (easiest using interactive rpk):
-
-```bash
-docker exec -it sb-redpanda rpk topic produce order.events
-```
-
-Then paste a message (press Enter to send; Ctrl+D to finish):
-
-```json
-{"id":"evt_bad_1","type":"OrderConfirmed","aggregateId":"bad","payload":{"orderId":"00000000-0000-0000-0000-000000000000"}}
-```
-
-Now observe InboxEvent:
-
-```bash
-docker exec -i sb-postgres psql -U ledger -d ledger -c 'SELECT * FROM "InboxEvent" LIMIT 5;'
-```
-
-Wait until attempts increase to `MAX_ATTEMPTS`, then it will change to `FAILED` status and go to DLQ:
-
-```bash
-docker exec -i sb-redpanda rpk topic consume order.events.dlq -n 1
-```
-
-Test replay functionality using the previously FAILED event evt_bad_1, reset it from FAILED back to PENDING (with attempt count reset to zero):
-
-```bash
-pnpm -C apps/worker replay:inbox -- --sourceEventId evt_bad_1 --resetAttempts true
-```
-
-Verify it changes to PENDING status with attempts=0:
-
-```bash
-docker exec -i sb-postgres psql -U ledger -d ledger -c 'SELECT * FROM "InboxEvent" LIMIT 5;'
-```
-
-Since the orderId doesn't exist, it will be retried again by the retry loop, eventually failing again and going back to DLQ (demonstrating controllable and repeatable replay verification).
-
-## Architecture
-
-```mermaid
-flowchart LR
-  Client[Client] -->|REST| API[NestJS API]
-  API -->|Prisma| PG[(Postgres)]
-  API -->|Tx write| OUTBOX[(OutboxEvent)]
-  OUTBOX -->|poll| Publisher[Worker: Outbox Publisher]
-  Publisher -->|produce| RP[(Redpanda/Kafka)]
-  RP -->|consume| Consumer[Worker: Consumer]
-  Consumer -->|upsert| INBOX[(InboxEvent)]
-  Consumer -->|idempotent credit| Ledger[(LedgerEntry)]
-  Consumer -->|retry/backoff| INBOX
-  INBOX -->|max attempts| DLQ[(DLQ)]
-```
-
-## Key flows
-
-* `POST /orders` (optional Idempotency-Key)
-* `POST /orders/{id}/confirm`:
-  * TX: confirm order + write OutboxEvent
-  * worker publishes to Kafka
-  * consumer writes InboxEvent + credits LedgerEntry (idempotent)
-* `GET /users/{id}/cashback-balance`: aggregated from ledger
-
-## Docs
-
-* [Architecture Flowchart Diagram](docs/diagrams/architecture.mmd)
-* [Order Confirmation Sequence Diagram](docs/diagrams/sequence-confirm.mmd)
-* [Retry Loop & DLQ Sequence Diagram](docs/diagrams/sequence-failure.mmd)
+- [docs/README.md](docs/README.md)
+- [docs/interview-story.md](docs/interview-story.md)
+- [docs/prisma-runtime-and-migrations.md](docs/prisma-runtime-and-migrations.md)
+- [docs/local-and-kind-runbook.md](docs/local-and-kind-runbook.md)
+- [docs/testing-playbook.md](docs/testing-playbook.md)

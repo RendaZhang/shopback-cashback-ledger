@@ -4,8 +4,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 import { HttpExceptionToApiResponseFilter } from './common/filters/http-exception.filter';
+import { runMigrationsIfEnabled } from './db/run-migrations';
 
 async function bootstrap() {
+  await runMigrationsIfEnabled();
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(
