@@ -1,0 +1,42 @@
+# VCS
+.git
+.gitignore
+
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+**/dist
+**/coverage
+**/.turbo
+**/.cache
+
+# Tooling caches
+.pnpm-store
+.npm
+.yarn
+.eslintcache
+
+# Local env / logs
+.env
+**/.env
+**/.env.*
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editors / OS
+.vscode
+.idea
+.DS_Store
+
+# Docker files not needed in context
+infra/docker-compose
+Dockerfile*
+
+# Docs and misc
+docs
+.tmp-deploy-api-*

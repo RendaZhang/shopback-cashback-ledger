@@ -11,6 +11,16 @@ pnpm start
 # open http://localhost:3000/docs
 ```
 
+## Docker Build
+
+Build context must be the repository root (so pnpm workspace files can be copied):
+
+```bash
+make docker-build
+```
+
+These Dockerfiles use multi-stage builds + `pnpm deploy --prod` to reduce runtime image size and keep only production dependencies.
+
 ## Test
 
 ### Database & MQ

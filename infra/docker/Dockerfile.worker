@@ -1,15 +1,28 @@
-FROM node:22.17.1-alpine AS build
+FROM node:22.17.1-bookworm-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.30.3 --activate
 WORKDIR /app
 
-COPY . .
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/worker/package.json apps/worker/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/db/prisma packages/db/prisma
 RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY . .
 RUN pnpm -C packages/db run generate
 RUN pnpm -C apps/worker build
+RUN pnpm deploy --legacy --filter @sb/worker --prod /opt/app
 
-FROM node:22.17.1-alpine AS runtime
+FROM node:22.17.1-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app /app
 
-CMD ["node", "apps/worker/dist/index.js"]
+# Run as non-root for better container security.
+USER node
+COPY --from=build --chown=node:node /opt/app /app
+
+CMD ["node", "dist/index.js"]
