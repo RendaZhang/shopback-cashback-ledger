@@ -5,6 +5,8 @@ metadata:
   namespace: sb-ledger
 data:
   PORT: "3000"
+  THROTTLE_TTL: "60"
+  THROTTLE_LIMIT: "600"
   VERSION: "v1"
   SERVICE_NAME_API: "sb-ledger-api"
   SERVICE_NAME_WORKER: "sb-ledger-worker"

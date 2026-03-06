@@ -102,10 +102,18 @@ Expected: worker metrics include backlog gauges and retry/DLQ counters.
 5. Rate-limit quick check (local):
 
 ```bash
-for i in $(seq 1 400); do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/health; done | sort | uniq -c
+for i in $(seq 1 1200); do curl -s -o /dev/null -w "%{http_code}\n" -H 'X-User-Id: demo-user-1' http://localhost:3000/health; done | sort | uniq -c
 ```
 
-Expected: with single local API instance, burst traffic should start returning `429`.
+Expected: with single local API instance and same user key, burst traffic should start returning `429`.
+
+Optional mixed-user check:
+
+```bash
+for i in $(seq 1 1200); do curl -s -o /dev/null -w "%{http_code}\n" -H "X-User-Id: user-$i" http://localhost:3000/health; done | sort | uniq -c
+```
+
+Expected: `429` should be near zero for mixed-user traffic.
 
 ## 5. Idempotent Order Creation API Examples
 
@@ -477,7 +485,7 @@ kubectl -n sb-ledger port-forward pod/${API_POD} 18081:3000
 In another terminal:
 
 ```bash
-for i in $(seq 1 700); do curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:18081/health; done | sort | uniq -c
+for i in $(seq 1 700); do curl -s -o /dev/null -w "%{http_code}\n" -H 'X-User-Id: demo-user-1' http://127.0.0.1:18081/health; done | sort | uniq -c
 curl -s http://127.0.0.1:18081/metrics | grep 'http_requests_total' | grep 'status="429"'
 ```
 
@@ -562,9 +570,6 @@ k6 run -e BASE_URL=http://localhost:30080 infra/loadtest/k6-create-confirm.js
 3. Run baseline with Docker k6 (recommended):
 
 ```bash
-docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
-
-# quite mode:
 docker run --rm --network host -i grafana/k6 run --quiet -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
 ```
 
@@ -587,7 +592,8 @@ See:
 
 Note:
 
-- After enabling global throttling (`300/60s` per pod), this same high-load scenario is expected to produce many `429` responses. Record it as the protected profile result rather than a raw throughput regression.
+- With user-based throttling (`THROTTLE_LIMIT=600`, `THROTTLE_TTL=60s`) and per-VU `X-User-Id`, this scenario should keep `429` close to zero.
+- To intentionally demonstrate throttling, reuse one fixed `X-User-Id` in all requests.
 
 ## 16. Canary Traffic Mixing and Rollback
 

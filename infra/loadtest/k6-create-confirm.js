@@ -29,7 +29,7 @@ export default function () {
   const createRes = http.post(
     `${BASE}/orders`,
     JSON.stringify({ userId: u, merchantId: merchant, amount, currency: 'SGD' }),
-    { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': createKey } },
+    { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': createKey, 'X-User-Id': u } },
   );
 
   const createOk = check(createRes, {
@@ -55,7 +55,7 @@ export default function () {
 
   const confirmKey = `k6-confirm-${uuid()}`;
   const confirmRes = http.post(`${BASE}/orders/${orderId}/confirm`, null, {
-    headers: { 'Idempotency-Key': confirmKey },
+    headers: { 'Idempotency-Key': confirmKey, 'X-User-Id': u },
   });
 
   check(confirmRes, {

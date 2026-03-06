@@ -31,6 +31,10 @@ spec:
               valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: VERSION } }
             - name: SERVICE_NAME
               valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: SERVICE_NAME_API } }
+            - name: THROTTLE_TTL
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: THROTTLE_TTL } }
+            - name: THROTTLE_LIMIT
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: THROTTLE_LIMIT } }
             - name: RUN_DB_MIGRATION
               value: "true"
             - name: DATABASE_URL

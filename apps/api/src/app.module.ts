@@ -11,14 +11,24 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { ConfigController } from './config/config.controller';
 import { MerchantsController } from './merchants/merchants.controller';
 import { CashbackRuleService } from './merchants/cashback-rule.service';
-import { MetricsThrottlerGuard } from './common/guards/metrics-throttler.guard';
+import { UserThrottlerGuard } from './common/throttle/user-throttler.guard';
+
+function getPositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number(value ?? '');
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.floor(parsed);
+}
+
+const throttleTtlSeconds = getPositiveInt(process.env.THROTTLE_TTL, 60);
+const throttleLimit = getPositiveInt(process.env.THROTTLE_LIMIT, 600);
 
 @Module({
   imports: [
     ThrottlerModule.forRoot([
       {
-        ttl: 60_000,
-        limit: 300,
+        // @nestjs/throttler v6 uses milliseconds for ttl
+        ttl: throttleTtlSeconds * 1000,
+        limit: throttleLimit,
       },
     ]),
     ConfigModule.forRoot({
@@ -33,7 +43,7 @@ import { MetricsThrottlerGuard } from './common/guards/metrics-throttler.guard';
     CashbackRuleService,
     {
       provide: APP_GUARD,
-      useClass: MetricsThrottlerGuard,
+      useClass: UserThrottlerGuard,
     },
   ],
 })

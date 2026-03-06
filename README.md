@@ -9,7 +9,7 @@ A simplified cashback/rewards ledger system for backend and system-design interv
 - Outbox pattern for reliable event publishing
 - Inbox + retry + DLQ flow for at-least-once consumers
 - Prisma + PostgreSQL data model for order and ledger consistency
-- API global rate limiting (`@nestjs/throttler`) for abuse/backpressure control
+- API global rate limiting (`@nestjs/throttler`) with user-first tracker (`X-User-Id`, fallback IP)
 - Redis-backed cashback-rule cache shared by API invalidation and worker reads
 
 ## Tech Stack
@@ -197,11 +197,22 @@ Expected: plain-text Prometheus output with worker business metrics, for example
 10. Verify API rate limiting and 429 observability:
 
 ```bash
-# Service-level check (result depends on replica count)
-for i in $(seq 1 1200); do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:30080/health; done | sort | uniq -c
+# same user -> should hit limit
+for i in $(seq 1 1200); do
+  curl -s -o /dev/null -w "%{http_code}\n" -H 'X-User-Id: demo-user-1' http://localhost:30080/health
+done | sort | uniq -c
 ```
 
 Expected: both `200` and `429` should appear under burst traffic.
+
+```bash
+# different users -> easier to stay below per-user limit
+for i in $(seq 1 1200); do
+  curl -s -o /dev/null -w "%{http_code}\n" -H "X-User-Id: user-$i" http://localhost:30080/health
+done | sort | uniq -c
+```
+
+Expected: `429` should be near zero in mixed-user traffic.
 
 To avoid Service load-balancing ambiguity, verify metrics on one pod directly:
 
@@ -289,13 +300,13 @@ Install and wire monitoring for API/worker metrics, dashboards, and alerts:
 Run baseline with Docker:
 
 ```bash
-docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+docker run --rm --network host -i grafana/k6 run --quiet -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
 ```
 
 Baseline snapshot:
 
 - [Load Test Baseline](docs/loadtest-baseline.md)
-- Includes both the original baseline and a "protected profile" run after enabling global rate limiting/cache.
+- Includes original baseline, per-IP protected profile, and the updated user-based throttling result.
 
 ## Prisma and Migration Runtime Contract
 

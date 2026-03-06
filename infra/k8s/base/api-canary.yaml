@@ -28,6 +28,10 @@ spec:
               value: "sb-ledger-api-canary"
             - name: VERSION
               value: "v2-canary"
+            - name: THROTTLE_TTL
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: THROTTLE_TTL } }
+            - name: THROTTLE_LIMIT
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: THROTTLE_LIMIT } }
             - name: DATABASE_URL
               valueFrom: { secretKeyRef: { name: sb-ledger-secret, key: DATABASE_URL } }
             - name: KAFKA_BROKER

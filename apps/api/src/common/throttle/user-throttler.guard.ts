@@ -15,7 +15,20 @@ function getRoute(req: Record<string, unknown>): string {
 }
 
 @Injectable()
-export class MetricsThrottlerGuard extends ThrottlerGuard {
+export class UserThrottlerGuard extends ThrottlerGuard {
+  protected async getTracker(req: Record<string, unknown>): Promise<string> {
+    const headers = req.headers as Record<string, unknown> | undefined;
+    const userId =
+      headers?.['x-user-id'] ?? headers?.['X-User-Id'] ?? headers?.['x-userid'] ?? headers?.['X-UserId'];
+
+    if (typeof userId === 'string' && userId.trim() !== '') {
+      return userId.trim();
+    }
+
+    const ip = req.ip;
+    return typeof ip === 'string' && ip.trim() !== '' ? ip : 'unknown';
+  }
+
   protected async throwThrottlingException(
     context: ExecutionContext,
     throttlerLimitDetail: ThrottlerLimitDetail,

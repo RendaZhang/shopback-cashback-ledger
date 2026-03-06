@@ -23,7 +23,7 @@ The hard parts are reliability and idempotency:
 I solve those with:
 
 - API idempotency keys
-- API global rate limiting (`300 req / 60s / instance` in demo) to protect confirm path
+- API global rate limiting (user-first key: `X-User-Id`, fallback IP; `600 req / 60s` default in demo) to protect confirm path
 - transactional outbox for reliable publish
 - inbox + retry + DLQ + replay for durable consumption
 - idempotent ledger writes using DB uniqueness constraints
@@ -107,9 +107,9 @@ For Prisma/runtime stability:
 
 ### 4.6 Protection and Performance Guardrails
 
-- global throttling is intentionally low in demo (`300/60s` per instance) so 429 behavior is easy to demonstrate
+- global throttling is configured per user in demo (`THROTTLE_LIMIT=600`, `THROTTLE_TTL=60s`)
 - this protects DB + Kafka from burst retries on `confirm`
-- trade-off: high-load synthetic tests will show high `http_req_failed` unless limits are tuned for that test profile
+- trade-off: if a single user key is hammered, 429 rises quickly; mixed-user traffic is much healthier
 - cashback-rule lookup uses Redis cache with TTL and short lock to reduce DB hits and avoid cache stampede
 
 ## 5) Metrics and SLO Talk Track

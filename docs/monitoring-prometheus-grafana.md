@@ -170,7 +170,7 @@ Optional check in Prometheus UI:
 Run k6 baseline:
 
 ```bash
-docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+docker run --rm --network host -i grafana/k6 run --quiet -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
 ```
 
 While running, open Grafana dashboard:
@@ -194,6 +194,9 @@ kubectl -n sb-ledger port-forward pod/${API_POD} 18081:3000
 In another terminal:
 
 ```bash
+# generate 429 with one user key if needed
+for i in $(seq 1 700); do curl -s -o /dev/null -w "%{http_code}\n" -H 'X-User-Id: demo-user-1' http://127.0.0.1:18081/health; done | sort | uniq -c
+
 curl -s http://127.0.0.1:18081/metrics | grep 'http_requests_total' | grep 'status="429"'
 ```
 

@@ -52,8 +52,10 @@ pnpm dev:worker
 - Expected: Prometheus text output with HTTP RED metrics
 - Worker metrics: `curl -s http://localhost:9100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head`
 - Expected: Prometheus text output with worker backlog/retry/DLQ metrics
-- Rate limit burst check: `for i in $(seq 1 400); do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/health; done | sort | uniq -c`
-- Expected: response set includes `429` once burst traffic exceeds configured limit
+- Rate limit burst check (same user key): `for i in $(seq 1 1200); do curl -s -o /dev/null -w "%{http_code}\n" -H 'X-User-Id: demo-user-1' http://localhost:3000/health; done | sort | uniq -c`
+- Expected: response set includes `429` for single-user burst traffic
+- Mixed-user check: `for i in $(seq 1 1200); do curl -s -o /dev/null -w "%{http_code}\n" -H "X-User-Id: user-$i" http://localhost:3000/health; done | sort | uniq -c`
+- Expected: `429` should be near zero for mixed-user traffic
 
 ## kind Runbook
 
@@ -115,7 +117,7 @@ kubectl -n sb-ledger port-forward pod/${API_POD} 18081:3000
 In another terminal:
 
 ```bash
-for i in $(seq 1 700); do curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:18081/health; done | sort | uniq -c
+for i in $(seq 1 700); do curl -s -o /dev/null -w "%{http_code}\n" -H 'X-User-Id: demo-user-1' http://127.0.0.1:18081/health; done | sort | uniq -c
 curl -s http://127.0.0.1:18081/metrics | grep 'http_requests_total' | grep 'status="429"'
 ```
 
@@ -157,7 +159,7 @@ Watch Grafana during run:
 Baseline snapshot:
 
 - [loadtest-baseline.md](loadtest-baseline.md)
-- Includes both initial baseline and protected-profile run after throttling/cache changes.
+- Includes initial baseline, IP-based protected-profile run, and final user-based-throttling run.
 
 ## Canary Runbook (Same Service Selector)
 

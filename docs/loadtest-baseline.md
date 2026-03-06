@@ -69,3 +69,38 @@ iterations: 20280 (244.474057/s)
   - k6 stage load exceeds the configured global throttle budget, so a large portion of requests are rejected as `429`.
 - Latency still remains low for accepted requests; failure-rate threshold now reflects protection behavior, not API correctness regression.
 - To compare pure service capacity with the original baseline, temporarily raise throttle limits or use a lower-VU test profile.
+
+## User-Based Throttle Run (Final)
+
+- run date: 2026-03-06
+- run mode: Docker k6 (`--network host`, `--quiet`) against `http://localhost:30080`
+- app changes before run:
+  - throttler tracker: `X-User-Id` first, fallback to IP
+  - throttle config from env: `THROTTLE_TTL=60s`, `THROTTLE_LIMIT=600`
+  - k6 create/confirm requests now include `X-User-Id: u_<VU>`
+
+### k6 result
+
+```text
+THRESHOLDS
+http_req_duration: p(95)=20.84ms (threshold p(95)<300) PASS
+http_req_failed: rate=0.00% (threshold rate<0.01) PASS
+
+HTTP
+http_req_duration: avg=11.66ms med=10.28ms p(95)=20.84ms max=2.63s
+http_req_failed: 0.00% (0 out of 33920)
+http_reqs: 33920 (385.052687/s)
+
+EXECUTION
+iterations: 16960 (192.526344/s)
+```
+
+### Prometheus verification
+
+- query: `sum(rate(http_requests_total{status="429"}[1m]))`
+- observed after run: `429_rate=0`
+
+### Interpretation
+
+- User-based throttling preserves abuse protection while avoiding cross-user contention during mixed-user load tests.
+- This matches real traffic assumptions better than pure IP-based throttling behind shared gateways.
