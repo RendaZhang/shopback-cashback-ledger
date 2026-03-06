@@ -39,6 +39,10 @@ This folder keeps architecture, operations, reliability, and observability notes
   - SLI/SLO proposals for API and worker pipeline
   - error budget and alerting intent
 
+- [loadtest-baseline.md](loadtest-baseline.md)
+  - k6 baseline scenario and measured results
+  - latency, error rate, and throughput snapshot
+
 ## Release and Rollout
 
 - [release-strategy.md](release-strategy.md)

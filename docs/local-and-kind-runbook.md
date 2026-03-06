@@ -108,6 +108,35 @@ curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|w
 - follow [monitoring-prometheus-grafana.md](monitoring-prometheus-grafana.md)
 - includes auto-scrape setup, Grafana dashboard provisioning, and alert rules
 
+## Load Test Baseline (k6)
+
+Script:
+
+- `infra/loadtest/k6-create-confirm.js`
+
+Run with local k6 (if installed):
+
+```bash
+k6 version
+k6 run -e BASE_URL=http://localhost:30080 infra/loadtest/k6-create-confirm.js
+```
+
+Run with Docker k6 (recommended in this repo):
+
+```bash
+docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+```
+
+Watch Grafana during run:
+
+- API QPS
+- API p95 latency
+- API 5xx rate
+
+Baseline snapshot:
+
+- [loadtest-baseline.md](loadtest-baseline.md)
+
 ## Canary Runbook (Same Service Selector)
 
 ### Goal

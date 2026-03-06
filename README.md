@@ -255,6 +255,21 @@ Install and wire monitoring for API/worker metrics, dashboards, and alerts:
   - API 5xx rate > 1% (5m)
   - Inbox failed > 0
 
+## Load Testing (k6)
+
+- Script: `infra/loadtest/k6-create-confirm.js`
+- Scenario: create order + confirm order with staged VUs
+
+Run baseline with Docker:
+
+```bash
+docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+```
+
+Baseline snapshot:
+
+- [Load Test Baseline](docs/loadtest-baseline.md)
+
 ## Prisma and Migration Runtime Contract
 
 - Prisma schema and generated client live in `packages/db` and are consumed via `@sb/db`.
@@ -306,5 +321,7 @@ pnpm test
 - [Prisma Runtime and Migrations](docs/prisma-runtime-and-migrations.md)
 - [Local and kind Runbook](docs/local-and-kind-runbook.md)
 - [Testing Playbook](docs/testing-playbook.md)
+- [Monitoring: Prometheus + Grafana](docs/monitoring-prometheus-grafana.md)
+- [Load Test Baseline (k6)](docs/loadtest-baseline.md)
 - [Release Strategy](docs/release-strategy.md)
 - [SLO (Service Level Objectives)](docs/slo.md)

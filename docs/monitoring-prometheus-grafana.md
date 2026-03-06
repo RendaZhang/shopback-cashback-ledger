@@ -165,7 +165,26 @@ Optional check in Prometheus UI:
 
 - [http://localhost:19090/alerts](http://localhost:19090/alerts)
 
-## 8. Troubleshooting
+## 8. Validate with Load Test
+
+Run k6 baseline:
+
+```bash
+docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+```
+
+While running, open Grafana dashboard:
+
+- [http://localhost:13000](http://localhost:13000)
+- dashboard: `ShopBack Cashback Ledger (Demo)`
+
+Watch these panels:
+
+- API QPS
+- API Error Rate (5xx / total)
+- API Latency p95
+
+## 9. Troubleshooting
 
 Prometheus pod `ImagePullBackOff`:
 

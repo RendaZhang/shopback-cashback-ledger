@@ -477,7 +477,43 @@ Optional:
 
 - open [http://localhost:19090/alerts](http://localhost:19090/alerts)
 
-## 15. Canary Traffic Mixing and Rollback
+## 15. Load Test Baseline (k6)
+
+1. Use script:
+
+- `infra/loadtest/k6-create-confirm.js`
+
+2. Run baseline with local k6:
+
+```bash
+k6 version
+k6 run -e BASE_URL=http://localhost:30080 infra/loadtest/k6-create-confirm.js
+```
+
+3. Run baseline with Docker k6 (recommended):
+
+```bash
+docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+```
+
+4. During the run, watch Grafana panels:
+
+- API QPS
+- API p95 latency
+- API 5xx rate
+
+5. Record key output to baseline doc:
+
+- `http_req_duration`
+- `http_req_failed`
+- `iterations`
+- request rate (`http_reqs`)
+
+See:
+
+- [loadtest-baseline.md](loadtest-baseline.md)
+
+## 16. Canary Traffic Mixing and Rollback
 
 1. Confirm deployments exist:
 
@@ -515,7 +551,7 @@ kubectl -n sb-ledger scale deploy/api-canary --replicas=0
 for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
 ```
 
-## 16. Automated Checks
+## 17. Automated Checks
 
 ```bash
 pnpm lint
@@ -523,7 +559,7 @@ pnpm typecheck
 pnpm test
 ```
 
-## 17. Cleanup
+## 18. Cleanup
 
 Local:
 
