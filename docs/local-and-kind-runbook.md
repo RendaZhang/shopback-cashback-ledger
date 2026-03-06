@@ -222,7 +222,7 @@ kind:
 kind delete cluster --name sb-ledger
 ```
 
-## Daily Commands
+## Useful Commands
 
 ```bash
 # Rebuild the image and load it into kind:

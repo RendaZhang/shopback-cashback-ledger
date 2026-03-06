@@ -1,32 +1,46 @@
 # Documentation Index
 
-This folder keeps architecture and operations notes for the cashback ledger demo.
+This folder keeps architecture, operations, reliability, and observability notes for the cashback ledger demo.
 
-## Core Documents
+## Architecture and Design
 
 - [interview-story.md](interview-story.md)
-  - 5-10 minute narrative for interviews
-  - trade-offs, patterns, and extension points
+  - 5-10 minute interview narrative
+  - design trade-offs and extension ideas
+
+- [diagrams/architecture.mmd](diagrams/architecture.mmd)
+- [diagrams/sequence-confirm.mmd](diagrams/sequence-confirm.mmd)
+- [diagrams/sequence-failure.mmd](diagrams/sequence-failure.mmd)
+
+## Data and Runtime Contract
 
 - [prisma-runtime-and-migrations.md](prisma-runtime-and-migrations.md)
   - Prisma packaging strategy
   - migration execution contract
   - guardrails to avoid runtime Prisma errors
 
+## Environment and Validation Runbooks
+
 - [local-and-kind-runbook.md](local-and-kind-runbook.md)
   - local bring-up and validation steps
-  - kind deployment, canary rollout/rollback, and troubleshooting
+  - kind deployment, canary rollout/rollback, troubleshooting
 
 - [testing-playbook.md](testing-playbook.md)
   - step-by-step test procedures
   - API, idempotency, DB/MQ checks, retry/DLQ/replay
 
+## Observability
+
 - [monitoring-prometheus-grafana.md](monitoring-prometheus-grafana.md)
   - kube-prometheus-stack installation on kind
-  - ServiceMonitor setup, dashboard provisioning, and alerts
+  - ServiceMonitor setup, dashboard provisioning, alert rules
 
-## Diagrams
+- [slo.md](slo.md)
+  - SLI/SLO proposals for API and worker pipeline
+  - error budget and alerting intent
 
-- [diagrams/architecture.mmd](diagrams/architecture.mmd)
-- [diagrams/sequence-confirm.mmd](diagrams/sequence-confirm.mmd)
-- [diagrams/sequence-failure.mmd](diagrams/sequence-failure.mmd)
+## Release and Rollout
+
+- [release-strategy.md](release-strategy.md)
+  - rolling update strategy and probes notes
+  - replica-based canary strategy and rollback

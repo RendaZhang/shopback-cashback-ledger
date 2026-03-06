@@ -236,12 +236,24 @@ kubectl -n sb-ledger scale deploy/api-canary --replicas=0
 for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
 ```
 
-## Monitoring Stack (Prometheus + Grafana)
+## Observability / Monitoring Stack (Prometheus + Grafana)
 
 Install and wire monitoring for API/worker metrics, dashboards, and alerts:
 
 - follow [docs/monitoring-prometheus-grafana.md](docs/monitoring-prometheus-grafana.md)
 - includes kube-prometheus-stack install, ServiceMonitors, Prometheus target verification, Grafana dashboard provisioning, and PrometheusRule alerts
+
+### Metrics
+
+- API exposes Prometheus metrics at `/metrics` (HTTP RED metrics)
+- Worker exposes metrics at `:9100/metrics` (backlog / retries / DLQ)
+
+### Dashboards & Alerts (k8s)
+
+- Grafana dashboard: **ShopBack Cashback Ledger (Demo)**
+- PrometheusRule:
+  - API 5xx rate > 1% (5m)
+  - Inbox failed > 0
 
 ## Prisma and Migration Runtime Contract
 
@@ -266,7 +278,12 @@ make reset
 Kubernetes:
 
 ```bash
+kubectl -n monitoring get pods
 kubectl -n sb-ledger get pods
+kubectl -n sb-ledger get pods -l app=worker
+kind load docker-image sb-ledger-api:dev --name sb-ledger
+kubectl -n sb-ledger rollout restart deploy/api
+kubectl -n sb-ledger rollout status deploy/api
 kubectl -n sb-ledger logs deploy/api --tail=200
 kubectl -n sb-ledger logs deploy/worker --tail=200
 ```
@@ -281,8 +298,13 @@ pnpm test
 
 ## Further Documentation
 
-- [docs/README.md](docs/README.md)
-- [docs/interview-story.md](docs/interview-story.md)
-- [docs/prisma-runtime-and-migrations.md](docs/prisma-runtime-and-migrations.md)
-- [docs/local-and-kind-runbook.md](docs/local-and-kind-runbook.md)
-- [docs/testing-playbook.md](docs/testing-playbook.md)
+- [Architecture Flow Chart](docs/diagrams/architecture.mmd)
+- [Confirm Sequence Diagram](docs/diagrams/sequence-confirm.mmd)
+- [Failure Sequence Diagram](docs/diagrams/sequence-failure.mmd)
+- [Documentation Index](docs/README.md)
+- [Interview Story](docs/interview-story.md)
+- [Prisma Runtime and Migrations](docs/prisma-runtime-and-migrations.md)
+- [Local and kind Runbook](docs/local-and-kind-runbook.md)
+- [Testing Playbook](docs/testing-playbook.md)
+- [Release Strategy](docs/release-strategy.md)
+- [SLO (Service Level Objectives)](docs/slo.md)
