@@ -48,6 +48,8 @@ pnpm dev:worker
 - Swagger: [http://localhost:3000/docs](http://localhost:3000/docs)
 - Health: `curl -s http://localhost:3000/health`
 - Expected: response envelope includes `data.version` (for example `v1`)
+- Metrics: `curl -s http://localhost:3000/metrics | grep -E 'http_requests_total|http_request_duration_seconds' | head`
+- Expected: Prometheus text output with HTTP RED metrics
 
 ## kind Runbook
 
@@ -84,6 +86,8 @@ kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events.dlq -
 - Swagger: [http://localhost:30080/docs](http://localhost:30080/docs)
 - Health: `curl -s http://localhost:30080/health`
 - Expected: response envelope includes `data.version`, sourced from `sb-ledger-config.VERSION`
+- Metrics: `curl -s http://localhost:30080/metrics | grep -E 'http_requests_total|http_request_duration_seconds' | head`
+- Expected: Prometheus text output with HTTP RED metrics
 
 ## Canary Runbook (Same Service Selector)
 

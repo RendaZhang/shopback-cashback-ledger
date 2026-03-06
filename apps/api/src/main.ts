@@ -1,10 +1,13 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { ResponseEnvelopeInterceptor } from './common/interceptors/response-envelope.interceptor';
 import { HttpExceptionToApiResponseFilter } from './common/filters/http-exception.filter';
 import { runMigrationsIfEnabled } from './db/run-migrations';
+import { MetricsInterceptor } from './metrics/metrics.interceptor';
+import { registry } from './metrics/metrics';
 
 async function bootstrap() {
   await runMigrationsIfEnabled();
@@ -18,6 +21,15 @@ async function bootstrap() {
     }),
   );
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
+  app.useGlobalInterceptors(new MetricsInterceptor());
+
+  // Prometheus metrics (bypass response envelope)
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.get('/metrics', async (_req: Request, res: Response) => {
+    res.setHeader('Content-Type', registry.contentType);
+    res.end(await registry.metrics());
+  });
+
   app.useGlobalFilters(new HttpExceptionToApiResponseFilter());
 
   const config = new DocumentBuilder()

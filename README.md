@@ -163,6 +163,14 @@ curl -s http://localhost:30080/health
 
 Expected: response envelope includes `data.version` (from `sb-ledger-config.VERSION`).
 
+8. Verify Prometheus metrics endpoint:
+
+```bash
+curl -s http://localhost:30080/metrics | grep -E 'http_requests_total|http_request_duration_seconds' | head
+```
+
+Expected: plain-text Prometheus output with `http_requests_total` and `http_request_duration_seconds`.
+
 ## Canary Demo (Second Deployment + Same Service)
 
 Canary setup in this repository:

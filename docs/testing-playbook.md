@@ -77,7 +77,15 @@ curl -s http://localhost:3000/health
 Expected: response envelope with `data.ok=true`.
 Expected: response envelope also includes `data.version` (for example `v1` locally, `v1` from ConfigMap on k8s).
 
-2. Swagger:
+2. Metrics check:
+
+```bash
+curl -s http://localhost:3000/metrics | grep -E 'http_requests_total|http_request_duration_seconds' | head
+```
+
+Expected: Prometheus text output (not JSON envelope), including HTTP RED metrics lines.
+
+3. Swagger:
 
 - [http://localhost:3000/docs](http://localhost:3000/docs)
 
