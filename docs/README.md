@@ -15,7 +15,7 @@ This folder keeps architecture and operations notes for the cashback ledger demo
 
 - [local-and-kind-runbook.md](local-and-kind-runbook.md)
   - local bring-up and validation steps
-  - kind deployment steps and troubleshooting
+  - kind deployment, canary rollout/rollback, and troubleshooting
 
 - [testing-playbook.md](testing-playbook.md)
   - step-by-step test procedures

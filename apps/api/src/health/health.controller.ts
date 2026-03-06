@@ -6,6 +6,6 @@ import { ApiTags } from '@nestjs/swagger';
 export class HealthController {
   @Get()
   ok() {
-    return { ok: true };
+    return { ok: true, version: process.env.VERSION ?? 'dev' };
   }
 }

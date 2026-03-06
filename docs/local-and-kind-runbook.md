@@ -38,6 +38,7 @@ docker exec -i sb-redpanda rpk topic create order.events.dlq -p 1 -r 1 || true
 6. Run processes:
 
 ```bash
+export VERSION=v1
 pnpm dev:api
 pnpm dev:worker
 ```
@@ -46,6 +47,7 @@ pnpm dev:worker
 
 - Swagger: [http://localhost:3000/docs](http://localhost:3000/docs)
 - Health: `curl -s http://localhost:3000/health`
+- Expected: response envelope includes `data.version` (for example `v1`)
 
 ## kind Runbook
 
@@ -80,6 +82,57 @@ kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events.dlq -
 5. Validate API endpoint:
 
 - Swagger: [http://localhost:30080/docs](http://localhost:30080/docs)
+- Health: `curl -s http://localhost:30080/health`
+- Expected: response envelope includes `data.version`, sourced from `sb-ledger-config.VERSION`
+
+## Canary Runbook (Same Service Selector)
+
+### Goal
+
+- keep `api` as stable
+- run `api-canary` as canary
+- route traffic through the same `api` Service (`selector: app=api`)
+- control canary ratio by replica count
+
+### Steps
+
+1. Apply resources (including `api-canary`):
+
+```bash
+kubectl apply -k infra/k8s/base
+kubectl -n sb-ledger get deploy
+```
+
+2. Set ratio example (stable 4, canary 1):
+
+```bash
+kubectl -n sb-ledger scale deploy/api --replicas=4
+kubectl -n sb-ledger scale deploy/api-canary --replicas=1
+kubectl -n sb-ledger get deploy api api-canary
+```
+
+3. Verify mixed responses:
+
+```bash
+for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
+```
+
+Expected:
+
+- most responses return `data.version=v1`
+- occasional responses return `data.version=v2-canary`
+
+4. Rollback demo (disable canary):
+
+```bash
+kubectl -n sb-ledger scale deploy/api-canary --replicas=0
+```
+
+5. Verify stable-only traffic:
+
+```bash
+for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
+```
 
 ## Troubleshooting
 
@@ -144,4 +197,17 @@ kind:
 
 ```bash
 kind delete cluster --name sb-ledger
+```
+
+## Daily Commands
+
+```bash
+# Rebuild the image and load it into kind:
+make docker-build
+kind load docker-image sb-ledger-api:dev --name sb-ledger
+# Perform a rolling update of the API (since the image tag hasn't changed, we need to force a restart):
+kubectl -n sb-ledger rollout restart deploy/api
+kubectl -n sb-ledger rollout status deploy/api
+# Verify:
+curl -s http://localhost:30080/health
 ```

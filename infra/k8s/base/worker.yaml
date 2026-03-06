@@ -8,6 +8,11 @@ spec:
   selector:
     matchLabels:
       app: worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   template:
     metadata:
       labels:
@@ -18,6 +23,8 @@ spec:
           image: sb-ledger-worker:dev
           imagePullPolicy: IfNotPresent
           env:
+            - name: VERSION
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: VERSION } }
             - name: SERVICE_NAME
               valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: SERVICE_NAME_WORKER } }
             - name: DATABASE_URL

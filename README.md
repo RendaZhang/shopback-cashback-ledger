@@ -81,6 +81,7 @@ docker exec -i sb-redpanda rpk topic list
 6. Run API and worker in separate terminals:
 
 ```bash
+export VERSION=v1
 pnpm dev:api
 pnpm dev:worker
 ```
@@ -154,12 +155,65 @@ kubectl -n sb-ledger exec deploy/redpanda -- rpk topic list
 
 - [http://localhost:30080/docs](http://localhost:30080/docs)
 
+7. Verify health version:
+
+```bash
+curl -s http://localhost:30080/health
+```
+
+Expected: response envelope includes `data.version` (from `sb-ledger-config.VERSION`).
+
+## Canary Demo (Second Deployment + Same Service)
+
+Canary setup in this repository:
+
+- `api` is stable (`VERSION=v1` from ConfigMap)
+- `api-canary` is canary (`VERSION=v2-canary`)
+- Both pods share label `app: api`
+- Service selector remains `app: api`, so traffic is mixed across stable and canary pods
+
+1. Apply manifests and check deployments:
+
+```bash
+kubectl apply -k infra/k8s/base
+kubectl -n sb-ledger get deploy
+```
+
+2. Optional: set stable/canary ratio for demonstration (4:1 ~= 20%):
+
+```bash
+kubectl -n sb-ledger scale deploy/api --replicas=4
+kubectl -n sb-ledger scale deploy/api-canary --replicas=1
+kubectl -n sb-ledger get deploy api api-canary
+```
+
+3. Verify mixed traffic by calling health 10 times:
+
+```bash
+for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
+```
+
+Expected: most responses show `v1`, and some show `v2-canary`.
+
+4. Roll back canary quickly:
+
+```bash
+kubectl -n sb-ledger scale deploy/api-canary --replicas=0
+```
+
+5. Verify all traffic is back to stable:
+
+```bash
+for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
+```
+
 ## Prisma and Migration Runtime Contract
 
 - Prisma schema and generated client live in `packages/db` and are consumed via `@sb/db`.
 - Both Docker images run `pnpm -C packages/db run generate` during build, so Prisma client is included in the image at build time.
 - API startup can run schema migrations via `prisma migrate deploy` when `RUN_DB_MIGRATION=true`.
 - Kubernetes currently enables this in `infra/k8s/base/api.yaml`.
+- Kubernetes ConfigMap includes `VERSION` for API/worker runtime version tagging and canary comparisons.
 - There is no dedicated `db-migrate-job` and no Prisma initContainer in API/worker deployments.
 
 ## Useful Commands

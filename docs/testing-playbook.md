@@ -61,6 +61,7 @@ docker exec -i sb-redpanda rpk topic list
 6. Start API and worker in separate terminals:
 
 ```bash
+export VERSION=v1
 pnpm dev:api
 pnpm dev:worker
 ```
@@ -74,6 +75,7 @@ curl -s http://localhost:3000/health
 ```
 
 Expected: response envelope with `data.ok=true`.
+Expected: response envelope also includes `data.version` (for example `v1` locally, `v1` from ConfigMap on k8s).
 
 2. Swagger:
 
@@ -392,7 +394,45 @@ kubectl -n sb-ledger logs deploy/worker --tail=200
 kubectl -n sb-ledger get jobs
 ```
 
-## 14. Automated Checks
+## 14. Canary Traffic Mixing and Rollback
+
+1. Confirm deployments exist:
+
+```bash
+kubectl -n sb-ledger get deploy api api-canary
+```
+
+2. Set stable/canary ratio (4:1 ~= 20%):
+
+```bash
+kubectl -n sb-ledger scale deploy/api --replicas=4
+kubectl -n sb-ledger scale deploy/api-canary --replicas=1
+```
+
+3. Verify mixed traffic via the same Service:
+
+```bash
+for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
+```
+
+Expected:
+
+- most responses contain `data.version=v1`
+- some responses contain `data.version=v2-canary`
+
+4. Roll back canary:
+
+```bash
+kubectl -n sb-ledger scale deploy/api-canary --replicas=0
+```
+
+5. Verify all responses are stable:
+
+```bash
+for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
+```
+
+## 15. Automated Checks
 
 ```bash
 pnpm lint
@@ -400,7 +440,7 @@ pnpm typecheck
 pnpm test
 ```
 
-## 15. Cleanup
+## 16. Cleanup
 
 Local:
 

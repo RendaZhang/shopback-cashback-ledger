@@ -6,4 +6,5 @@ resources:
   - redis.yaml
   - redpanda.yaml
   - api.yaml
+  - api-canary.yaml
   - worker.yaml

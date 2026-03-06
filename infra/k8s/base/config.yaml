@@ -5,6 +5,7 @@ metadata:
   namespace: sb-ledger
 data:
   PORT: "3000"
+  VERSION: "v1"
   SERVICE_NAME_API: "sb-ledger-api"
   SERVICE_NAME_WORKER: "sb-ledger-worker"
 
