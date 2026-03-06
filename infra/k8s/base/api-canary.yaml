@@ -36,6 +36,12 @@ spec:
               valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: REDIS_HOST } }
             - name: REDIS_PORT
               valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: REDIS_PORT } }
+            - name: CASHBACK_RULE_CACHE_TTL_SECONDS
+              value: "60"
+            - name: CASHBACK_RULE_CACHE_LOCK_MS
+              value: "300"
+            - name: CASHBACK_RULE_CACHE_WAIT_MS
+              value: "30"
           readinessProbe:
             httpGet:
               path: /health

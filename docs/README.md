@@ -41,7 +41,7 @@ This folder keeps architecture, operations, reliability, and observability notes
 
 - [loadtest-baseline.md](loadtest-baseline.md)
   - k6 baseline scenario and measured results
-  - latency, error rate, and throughput snapshot
+  - includes both original baseline and post-protection (rate-limit enabled) profile
 
 ## Release and Rollout
 

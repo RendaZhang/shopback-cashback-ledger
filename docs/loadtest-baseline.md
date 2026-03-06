@@ -38,3 +38,34 @@ vus_max: 50
   - Kafka/worker lag (async path)
 - notes:
   - k6 emitted a high-cardinality warning due many unique URL time series; future script optimization can add stable request `name` tags to reduce cardinality noise.
+
+## Optimized Run (After Rate Limit + Cashback Rule Cache)
+
+- run date: 2026-03-06
+- run mode: Docker k6 (`--network host`, `--quiet`) against `http://localhost:30080`
+- app changes before run:
+  - global throttling enabled (`ttl=60_000ms`, `limit=300` per pod)
+  - cashback rule cache enabled (Redis + TTL + lock)
+
+### k6 result
+
+```text
+THRESHOLDS
+http_req_duration: p(95)=7.8ms (threshold p(95)<300) PASS
+http_req_failed: rate=92.30% (threshold rate<0.01) FAIL
+
+HTTP
+http_req_duration: avg=2.96ms med=1.2ms p(95)=7.8ms max=2.94s
+http_req_failed: 92.30% (19550 out of 21180)
+http_reqs: 21180 (255.323498/s)
+
+EXECUTION
+iterations: 20280 (244.474057/s)
+```
+
+### Interpretation
+
+- This run is intentionally in a **protected** profile:
+  - k6 stage load exceeds the configured global throttle budget, so a large portion of requests are rejected as `429`.
+- Latency still remains low for accepted requests; failure-rate threshold now reflects protection behavior, not API correctness regression.
+- To compare pure service capacity with the original baseline, temporarily raise throttle limits or use a lower-VU test profile.

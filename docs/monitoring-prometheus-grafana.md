@@ -184,6 +184,19 @@ Watch these panels:
 - API Error Rate (5xx / total)
 - API Latency p95
 
+Optional throttle visibility check (single API pod):
+
+```bash
+API_POD=$(kubectl -n sb-ledger get pods --no-headers | awk '/^api-/{print $1; exit}')
+kubectl -n sb-ledger port-forward pod/${API_POD} 18081:3000
+```
+
+In another terminal:
+
+```bash
+curl -s http://127.0.0.1:18081/metrics | grep 'http_requests_total' | grep 'status="429"'
+```
+
 ## 9. Troubleshooting
 
 Prometheus pod `ImagePullBackOff`:

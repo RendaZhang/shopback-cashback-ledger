@@ -37,6 +37,16 @@ spec:
               valueFrom: { secretKeyRef: { name: sb-ledger-secret, key: DATABASE_URL } }
             - name: KAFKA_BROKER
               valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: KAFKA_BROKER } }
+            - name: REDIS_HOST
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: REDIS_HOST } }
+            - name: REDIS_PORT
+              valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: REDIS_PORT } }
+            - name: CASHBACK_RULE_CACHE_TTL_SECONDS
+              value: "60"
+            - name: CASHBACK_RULE_CACHE_LOCK_MS
+              value: "300"
+            - name: CASHBACK_RULE_CACHE_WAIT_MS
+              value: "30"
 
             - name: EVENT_TOPIC
               valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: EVENT_TOPIC } }

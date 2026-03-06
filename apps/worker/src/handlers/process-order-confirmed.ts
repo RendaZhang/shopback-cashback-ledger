@@ -1,4 +1,5 @@
 import { LedgerEntryType, OrderStatus, Prisma, PrismaClient } from '@sb/db';
+import { getCashbackRule } from '../cache/cashback-rule-cache';
 
 export type OrderConfirmedPayload = {
   orderId: string;
@@ -19,8 +20,8 @@ export async function processOrderConfirmed(prisma: PrismaClient, payload: Order
       throw new Error(`Order not confirmed: ${orderId} status=${order.status}`);
     }
 
-    const rule = await tx.cashbackRule.findUnique({ where: { merchantId: order.merchantId } });
-    const rate = rule?.rate ?? new Prisma.Decimal('0.05');
+    const rule = await getCashbackRule(tx, order.merchantId);
+    const rate = rule.rate;
 
     let cashback = order.amount.mul(rate);
     if (rule?.cap && cashback.greaterThan(rule.cap)) cashback = rule.cap;

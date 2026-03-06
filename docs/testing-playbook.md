@@ -22,6 +22,7 @@ This playbook covers:
 - Optional: `jq` for easier JSON parsing
 - Optional for k8s: `kind`, `kubectl`
 - Optional for monitoring stack: `helm`
+- Optional for load test: `k6` (or use Docker `grafana/k6`)
 
 ## 3. Local Bring-up
 
@@ -97,6 +98,14 @@ Expected: worker metrics include backlog gauges and retry/DLQ counters.
 4. Swagger:
 
 - [http://localhost:3000/docs](http://localhost:3000/docs)
+
+5. Rate-limit quick check (local):
+
+```bash
+for i in $(seq 1 400); do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/health; done | sort | uniq -c
+```
+
+Expected: with single local API instance, burst traffic should start returning `429`.
 
 ## 5. Idempotent Order Creation API Examples
 
@@ -203,6 +212,47 @@ curl -s http://localhost:3000/users/u_1/cashback-balance
 sleep 2
 curl -s http://localhost:3000/users/u_1/cashback-balance
 ```
+
+### 7.1 Cashback Rule Cache Verification (Redis)
+
+1. Upsert merchant rule and confirm Redis key exists:
+
+```bash
+curl -s -X POST http://localhost:3000/merchants/m_1/cashback-rule \
+  -H 'Content-Type: application/json' \
+  -d '{"rate":0.07}'
+
+docker exec -i sb-redis redis-cli GET cashback_rule:m_1
+```
+
+2. Trigger worker path (create + confirm), then read cache again:
+
+```bash
+CACHE_ORDER_ID=$(curl -s -X POST http://localhost:3000/orders \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: cache-create-001' \
+  -d '{"userId":"u_cache","merchantId":"m_1","amount":100,"currency":"SGD"}' | jq -r '.data.id')
+
+curl -s -X POST http://localhost:3000/orders/${CACHE_ORDER_ID}/confirm \
+  -H 'Idempotency-Key: cache-confirm-001'
+
+sleep 1
+docker exec -i sb-redis redis-cli GET cashback_rule:m_1
+```
+
+Expected: key `cashback_rule:m_1` is present and payload reflects latest rule (`rate`/`cap`).
+
+3. Update rule again and verify API invalidates cache:
+
+```bash
+curl -s -X POST http://localhost:3000/merchants/m_1/cashback-rule \
+  -H 'Content-Type: application/json' \
+  -d '{"rate":0.09}'
+
+docker exec -i sb-redis redis-cli GET cashback_rule:m_1
+```
+
+Expected: immediately after update, key may be empty (`(nil)`) until next read repopulates cache.
 
 ## 8. Event Processing Workflow
 
@@ -417,7 +467,26 @@ In another terminal:
 curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
 ```
 
-8. Verify no migration job:
+8. Verify API throttling + 429 metric on a single pod:
+
+```bash
+API_POD=$(kubectl -n sb-ledger get pods --no-headers | awk '/^api-/{print $1; exit}')
+kubectl -n sb-ledger port-forward pod/${API_POD} 18081:3000
+```
+
+In another terminal:
+
+```bash
+for i in $(seq 1 700); do curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:18081/health; done | sort | uniq -c
+curl -s http://127.0.0.1:18081/metrics | grep 'http_requests_total' | grep 'status="429"'
+```
+
+Expected:
+
+- burst check contains `429`
+- metrics contain `http_requests_total{...,status="429"}`
+
+9. Verify no migration job:
 
 ```bash
 kubectl -n sb-ledger get jobs
@@ -494,6 +563,9 @@ k6 run -e BASE_URL=http://localhost:30080 infra/loadtest/k6-create-confirm.js
 
 ```bash
 docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+
+# quite mode:
+docker run --rm --network host -i grafana/k6 run --quiet -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
 ```
 
 4. During the run, watch Grafana panels:
@@ -512,6 +584,10 @@ docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30
 See:
 
 - [loadtest-baseline.md](loadtest-baseline.md)
+
+Note:
+
+- After enabling global throttling (`300/60s` per pod), this same high-load scenario is expected to produce many `429` responses. Record it as the protected profile result rather than a raw throughput regression.
 
 ## 16. Canary Traffic Mixing and Rollback
 

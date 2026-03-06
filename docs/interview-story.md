@@ -23,9 +23,11 @@ The hard parts are reliability and idempotency:
 I solve those with:
 
 - API idempotency keys
+- API global rate limiting (`300 req / 60s / instance` in demo) to protect confirm path
 - transactional outbox for reliable publish
 - inbox + retry + DLQ + replay for durable consumption
 - idempotent ledger writes using DB uniqueness constraints
+- Redis cashback-rule cache (API invalidation + worker read-through) to reduce DB pressure
 
 ## 3) 2-Minute Architecture Flow
 
@@ -37,6 +39,7 @@ I solve those with:
 4. Worker publish loop polls `OutboxEvent(PENDING)` and pushes `OrderConfirmed` to Kafka/Redpanda.
 5. Worker consumer reads event and upserts `InboxEvent` by `sourceEventId` for dedupe.
 6. Business handler computes cashback and inserts `LedgerEntry(CREDIT)`.
+   - worker reads cashback rule via Redis cache; cache miss falls back to DB
 7. Retry loop handles transient failures with exponential backoff.
 8. After max attempts, mark `InboxEvent=FAILED` and push to DLQ.
 9. Replay CLI can move failed events back to `PENDING` after fix.
@@ -102,6 +105,13 @@ For Prisma/runtime stability:
 - API can run `prisma migrate deploy` on startup (`RUN_DB_MIGRATION=true`)
 - no extra Prisma initContainer or migration job required for this demo
 
+### 4.6 Protection and Performance Guardrails
+
+- global throttling is intentionally low in demo (`300/60s` per instance) so 429 behavior is easy to demonstrate
+- this protects DB + Kafka from burst retries on `confirm`
+- trade-off: high-load synthetic tests will show high `http_req_failed` unless limits are tuned for that test profile
+- cashback-rule lookup uses Redis cache with TTL and short lock to reduce DB hits and avoid cache stampede
+
 ## 5) Metrics and SLO Talk Track
 
 ### API RED metrics
@@ -109,6 +119,7 @@ For Prisma/runtime stability:
 - request rate: `http_requests_total`
 - error rate: `status=5xx` fraction
 - latency: `http_request_duration_seconds` (p95 via histogram quantile)
+- throttling visibility: `http_requests_total{status="429"}` (verify on a single pod to avoid Service load-balancing ambiguity)
 
 ### Worker health metrics
 

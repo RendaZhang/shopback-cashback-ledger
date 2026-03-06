@@ -52,6 +52,8 @@ pnpm dev:worker
 - Expected: Prometheus text output with HTTP RED metrics
 - Worker metrics: `curl -s http://localhost:9100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head`
 - Expected: Prometheus text output with worker backlog/retry/DLQ metrics
+- Rate limit burst check: `for i in $(seq 1 400); do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/health; done | sort | uniq -c`
+- Expected: response set includes `429` once burst traffic exceeds configured limit
 
 ## kind Runbook
 
@@ -103,7 +105,26 @@ In another terminal:
 curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
 ```
 
-7. Optional: install Prometheus + Grafana stack
+7. Validate 429 observability on a single API pod:
+
+```bash
+API_POD=$(kubectl -n sb-ledger get pods --no-headers | awk '/^api-/{print $1; exit}')
+kubectl -n sb-ledger port-forward pod/${API_POD} 18081:3000
+```
+
+In another terminal:
+
+```bash
+for i in $(seq 1 700); do curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:18081/health; done | sort | uniq -c
+curl -s http://127.0.0.1:18081/metrics | grep 'http_requests_total' | grep 'status="429"'
+```
+
+Expected:
+
+- burst check contains `429`
+- metrics contain `http_requests_total{...,status="429"}`
+
+8. Optional: install Prometheus + Grafana stack
 
 - follow [monitoring-prometheus-grafana.md](monitoring-prometheus-grafana.md)
 - includes auto-scrape setup, Grafana dashboard provisioning, and alert rules
@@ -124,7 +145,7 @@ k6 run -e BASE_URL=http://localhost:30080 infra/loadtest/k6-create-confirm.js
 Run with Docker k6 (recommended in this repo):
 
 ```bash
-docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+docker run --rm --network host -i grafana/k6 run --quiet -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
 ```
 
 Watch Grafana during run:
@@ -136,6 +157,7 @@ Watch Grafana during run:
 Baseline snapshot:
 
 - [loadtest-baseline.md](loadtest-baseline.md)
+- Includes both initial baseline and protected-profile run after throttling/cache changes.
 
 ## Canary Runbook (Same Service Selector)
 

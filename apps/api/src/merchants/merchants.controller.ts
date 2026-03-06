@@ -3,11 +3,15 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Prisma } from '@sb/db';
 import { PrismaService } from '../db/prisma.service';
 import { UpsertCashbackRuleDto } from './dto/upsert-cashback-rule.dto';
+import { CashbackRuleService } from './cashback-rule.service';
 
 @ApiTags('merchants')
 @Controller('merchants')
 export class MerchantsController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cashbackRuleService: CashbackRuleService,
+  ) {}
 
   @Post(':id/cashback-rule')
   @ApiOperation({ summary: 'Upsert cashback rule for a merchant' })
@@ -24,6 +28,8 @@ export class MerchantsController {
         cap: dto.cap === undefined ? null : new Prisma.Decimal(dto.cap),
       },
     });
+
+    await this.cashbackRuleService.invalidate(merchantId);
 
     return {
       merchantId: rule.merchantId,

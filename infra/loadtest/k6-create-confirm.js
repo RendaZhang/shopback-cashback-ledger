@@ -32,13 +32,26 @@ export default function () {
     { headers: { 'Content-Type': 'application/json', 'Idempotency-Key': createKey } },
   );
 
-  check(createRes, {
+  const createOk = check(createRes, {
     'create status 201/200': (r) => r.status === 201 || r.status === 200,
   });
+  if (!createOk) {
+    sleep(0.1);
+    return;
+  }
 
-  const body = createRes.json();
+  let body;
+  try {
+    body = createRes.json();
+  } catch {
+    sleep(0.1);
+    return;
+  }
   const orderId = body?.data?.id;
-  if (!orderId) return;
+  if (!orderId) {
+    sleep(0.1);
+    return;
+  }
 
   const confirmKey = `k6-confirm-${uuid()}`;
   const confirmRes = http.post(`${BASE}/orders/${orderId}/confirm`, null, {

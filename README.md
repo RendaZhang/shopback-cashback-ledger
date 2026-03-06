@@ -9,6 +9,8 @@ A simplified cashback/rewards ledger system for backend and system-design interv
 - Outbox pattern for reliable event publishing
 - Inbox + retry + DLQ flow for at-least-once consumers
 - Prisma + PostgreSQL data model for order and ledger consistency
+- API global rate limiting (`@nestjs/throttler`) for abuse/backpressure control
+- Redis-backed cashback-rule cache shared by API invalidation and worker reads
 
 ## Tech Stack
 
@@ -192,6 +194,30 @@ Expected: plain-text Prometheus output with worker business metrics, for example
 - `worker_dlq_produced_total`
 - `worker_inbox_retries_total`
 
+10. Verify API rate limiting and 429 observability:
+
+```bash
+# Service-level check (result depends on replica count)
+for i in $(seq 1 1200); do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:30080/health; done | sort | uniq -c
+```
+
+Expected: both `200` and `429` should appear under burst traffic.
+
+To avoid Service load-balancing ambiguity, verify metrics on one pod directly:
+
+```bash
+API_POD=$(kubectl -n sb-ledger get pods --no-headers | awk '/^api-/{print $1; exit}')
+kubectl -n sb-ledger port-forward pod/${API_POD} 18081:3000
+```
+
+In another terminal:
+
+```bash
+curl -s http://127.0.0.1:18081/metrics | grep 'http_requests_total' | grep 'status="429"'
+```
+
+Expected: `http_requests_total{...,status="429"}` is present.
+
 ## Canary Demo (Second Deployment + Same Service)
 
 Canary setup in this repository:
@@ -269,6 +295,7 @@ docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30
 Baseline snapshot:
 
 - [Load Test Baseline](docs/loadtest-baseline.md)
+- Includes both the original baseline and a "protected profile" run after enabling global rate limiting/cache.
 
 ## Prisma and Migration Runtime Contract
 
