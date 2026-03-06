@@ -85,7 +85,15 @@ curl -s http://localhost:3000/metrics | grep -E 'http_requests_total|http_reques
 
 Expected: Prometheus text output (not JSON envelope), including HTTP RED metrics lines.
 
-3. Swagger:
+3. Worker metrics check:
+
+```bash
+curl -s http://localhost:9100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
+```
+
+Expected: worker metrics include backlog gauges and retry/DLQ counters.
+
+4. Swagger:
 
 - [http://localhost:3000/docs](http://localhost:3000/docs)
 
@@ -396,7 +404,19 @@ kubectl -n sb-ledger logs deploy/api --tail=200
 kubectl -n sb-ledger logs deploy/worker --tail=200
 ```
 
-7. Verify no migration job:
+7. Verify worker metrics via port-forward:
+
+```bash
+kubectl -n sb-ledger port-forward deploy/worker 19100:9100
+```
+
+In another terminal:
+
+```bash
+curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
+```
+
+8. Verify no migration job:
 
 ```bash
 kubectl -n sb-ledger get jobs

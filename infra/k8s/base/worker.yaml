@@ -22,7 +22,13 @@ spec:
         - name: worker
           image: sb-ledger-worker:dev
           imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9100
           env:
+            - name: METRICS_PORT
+              value: "9100"
+            - name: METRICS_REFRESH_MS
+              value: "2000"
             - name: VERSION
               valueFrom: { configMapKeyRef: { name: sb-ledger-config, key: VERSION } }
             - name: SERVICE_NAME

@@ -171,6 +171,26 @@ curl -s http://localhost:30080/metrics | grep -E 'http_requests_total|http_reque
 
 Expected: plain-text Prometheus output with `http_requests_total` and `http_request_duration_seconds`.
 
+9. Verify worker metrics (port-forward):
+
+```bash
+kubectl -n sb-ledger port-forward deploy/worker 19100:9100
+```
+
+Open another terminal:
+
+```bash
+curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
+```
+
+Expected: plain-text Prometheus output with worker business metrics, for example:
+
+- `worker_inbox_pending`
+- `worker_inbox_failed`
+- `worker_outbox_pending`
+- `worker_dlq_produced_total`
+- `worker_inbox_retries_total`
+
 ## Canary Demo (Second Deployment + Same Service)
 
 Canary setup in this repository:

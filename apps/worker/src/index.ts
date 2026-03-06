@@ -3,6 +3,8 @@ import { Prisma, PrismaClient, OutboxStatus } from '@sb/db';
 import { Kafka } from 'kafkajs';
 import { startConsumer } from './consumer';
 import { retryInboxLoop } from './inbox-retry';
+import { startMetricsServer } from './metrics-server';
+import { startMetricsRefresh } from './metrics-refresh';
 
 const prisma = new PrismaClient();
 
@@ -101,6 +103,9 @@ async function publishOnce() {
 }
 
 async function main() {
+  startMetricsServer();
+  startMetricsRefresh(prisma);
+
   await producer.connect();
 
   // 这样一个 worker 进程同时做：**outbox publish + kafka consume 入账**；

@@ -1,6 +1,7 @@
 import { Kafka } from 'kafkajs';
 import { InboxStatus, PrismaClient } from '@sb/db';
 import { processOrderConfirmed } from './handlers/process-order-confirmed';
+import { dlqProducedTotal, inboxRetriesTotal } from './metrics';
 
 const dlqTopic = process.env.DLQ_TOPIC ?? 'order.events.dlq';
 const maxAttempts = Number(process.env.MAX_ATTEMPTS ?? '5');
@@ -24,6 +25,7 @@ export async function retryInboxLoop(prisma: PrismaClient, kafka: Kafka) {
     });
 
     for (const e of events) {
+      inboxRetriesTotal.inc(1);
       try {
         const payload = e.payload as { orderId?: string };
         if (!payload.orderId) {
@@ -66,6 +68,7 @@ export async function retryInboxLoop(prisma: PrismaClient, kafka: Kafka) {
               },
             ],
           });
+          dlqProducedTotal.inc(1);
         } else {
           await prisma.inboxEvent.update({
             where: { id: e.id },

@@ -50,6 +50,8 @@ pnpm dev:worker
 - Expected: response envelope includes `data.version` (for example `v1`)
 - Metrics: `curl -s http://localhost:3000/metrics | grep -E 'http_requests_total|http_request_duration_seconds' | head`
 - Expected: Prometheus text output with HTTP RED metrics
+- Worker metrics: `curl -s http://localhost:9100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head`
+- Expected: Prometheus text output with worker backlog/retry/DLQ metrics
 
 ## kind Runbook
 
@@ -88,6 +90,18 @@ kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events.dlq -
 - Expected: response envelope includes `data.version`, sourced from `sb-ledger-config.VERSION`
 - Metrics: `curl -s http://localhost:30080/metrics | grep -E 'http_requests_total|http_request_duration_seconds' | head`
 - Expected: Prometheus text output with HTTP RED metrics
+
+6. Validate worker metrics endpoint (via port-forward):
+
+```bash
+kubectl -n sb-ledger port-forward deploy/worker 19100:9100
+```
+
+In another terminal:
+
+```bash
+curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
+```
 
 ## Canary Runbook (Same Service Selector)
 
@@ -214,4 +228,7 @@ kubectl -n sb-ledger rollout restart deploy/api
 kubectl -n sb-ledger rollout status deploy/api
 # Verify:
 curl -s http://localhost:30080/health
+
+# Find the pod with worker label
+kubectl -n sb-ledger get pods -l app=worker
 ```
