@@ -8,6 +8,15 @@
     "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@sb/db": [
+        "packages/db/generated/client"
+      ],
+      "@sb/db/*": [
+        "packages/db/*"
+      ]
+    }
   }
 }
