@@ -21,6 +21,7 @@ This playbook covers:
 - Docker
 - Optional: `jq` for easier JSON parsing
 - Optional for k8s: `kind`, `kubectl`
+- Optional for monitoring stack: `helm`
 
 ## 3. Local Bring-up
 
@@ -422,7 +423,46 @@ curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|w
 kubectl -n sb-ledger get jobs
 ```
 
-## 14. Canary Traffic Mixing and Rollback
+## 14. Monitoring Stack Verification (Prometheus + Grafana)
+
+1. Install stack and ServiceMonitors:
+
+- follow [monitoring-prometheus-grafana.md](monitoring-prometheus-grafana.md)
+
+2. Verify Prometheus services:
+
+```bash
+kubectl -n monitoring get svc | grep prometheus
+```
+
+3. Port-forward Prometheus and check targets:
+
+```bash
+kubectl -n monitoring port-forward svc/kps-kube-prometheus-stack-prometheus 19090:9090
+```
+
+Then open:
+
+- [http://localhost:19090/targets](http://localhost:19090/targets)
+
+Expected:
+
+- `sb-ledger-api` target is `UP`
+- `sb-ledger-worker` target is `UP`
+
+4. Port-forward Grafana:
+
+```bash
+kubectl -n monitoring port-forward svc/kps-grafana 13000:80
+```
+
+Then open:
+
+- [http://localhost:13000](http://localhost:13000)
+- username: `admin`
+- password: `admin`
+
+## 15. Canary Traffic Mixing and Rollback
 
 1. Confirm deployments exist:
 
@@ -460,7 +500,7 @@ kubectl -n sb-ledger scale deploy/api-canary --replicas=0
 for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
 ```
 
-## 15. Automated Checks
+## 16. Automated Checks
 
 ```bash
 pnpm lint
@@ -468,7 +508,7 @@ pnpm typecheck
 pnpm test
 ```
 
-## 16. Cleanup
+## 17. Cleanup
 
 Local:
 

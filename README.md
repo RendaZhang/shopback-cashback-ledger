@@ -41,6 +41,7 @@ docs/
 - pnpm 10+
 - Docker
 - Optional for k8s: `kind`, `kubectl`
+- Optional for monitoring stack: `helm`
 
 ## Quickstart (Local)
 
@@ -220,6 +221,13 @@ kubectl -n sb-ledger get deploy api api-canary
 ```bash
 for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
 ```
+
+## Monitoring Stack (Prometheus + Grafana)
+
+Install and wire auto-scraping for API/worker metrics:
+
+- follow [docs/monitoring-prometheus-grafana.md](docs/monitoring-prometheus-grafana.md)
+- includes kube-prometheus-stack install, ServiceMonitors, target verification, and Grafana access
 
 Expected: most responses show `v1`, and some show `v2-canary`.
 

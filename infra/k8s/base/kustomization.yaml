@@ -8,3 +8,4 @@ resources:
   - api.yaml
   - api-canary.yaml
   - worker.yaml
+  - worker-metrics.yaml

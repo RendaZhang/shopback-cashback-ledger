@@ -1,0 +1,13 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: sb-ledger-worker
+  namespace: sb-ledger
+spec:
+  selector:
+    matchLabels:
+      app: worker-metrics
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s

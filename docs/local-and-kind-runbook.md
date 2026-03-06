@@ -103,6 +103,10 @@ In another terminal:
 curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
 ```
 
+7. Optional: install Prometheus + Grafana stack
+
+- follow [monitoring-prometheus-grafana.md](monitoring-prometheus-grafana.md)
+
 ## Canary Runbook (Same Service Selector)
 
 ### Goal
