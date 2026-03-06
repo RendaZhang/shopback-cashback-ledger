@@ -1,0 +1,30 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sb-ledger-alerts
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  groups:
+    - name: sb-ledger.rules
+      rules:
+        - alert: SBLedgerApiHigh5xxRate
+          expr: |
+            (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.01
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "API 5xx rate > 1% (5m)"
+            description: "High error rate detected on API."
+
+        - alert: SBLedgerInboxFailedNonZero
+          expr: |
+            worker_inbox_failed > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Inbox FAILED > 0"
+            description: "Some events exceeded max attempts and require investigation / replay."

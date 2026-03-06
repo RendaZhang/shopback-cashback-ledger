@@ -23,7 +23,7 @@ This folder keeps architecture and operations notes for the cashback ledger demo
 
 - [monitoring-prometheus-grafana.md](monitoring-prometheus-grafana.md)
   - kube-prometheus-stack installation on kind
-  - ServiceMonitor setup and target verification
+  - ServiceMonitor setup, dashboard provisioning, and alerts
 
 ## Diagrams
 

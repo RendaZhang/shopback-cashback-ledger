@@ -1,6 +1,6 @@
-# Prometheus and Grafana on kind (kube-prometheus-stack)
+# Prometheus, Grafana, Dashboards, and Alerts on kind
 
-This guide installs Prometheus Operator + Prometheus + Grafana, then configures automatic scraping for API and worker metrics.
+This guide installs Prometheus Operator + Prometheus + Grafana, configures automatic scraping for API and worker metrics, provisions a Grafana dashboard, and applies alert rules.
 
 ## Prerequisites
 
@@ -99,7 +99,73 @@ Credentials:
 - username: `admin`
 - password: `admin`
 
-## 6. Troubleshooting
+## 6. Provision Grafana Dashboard
+
+Create dashboard files:
+
+```bash
+mkdir -p infra/monitoring/grafana
+```
+
+- dashboard JSON: `infra/monitoring/grafana/sb-ledger-dashboard.json`
+- provisioning ConfigMap: `infra/monitoring/grafana/provisioning.yaml`
+
+Embed dashboard JSON into ConfigMap and apply:
+
+```bash
+kubectl apply -f infra/monitoring/grafana/provisioning.yaml
+kubectl -n monitoring rollout restart deploy/kps-grafana
+kubectl -n monitoring rollout status deploy/kps-grafana
+```
+
+Verify in Grafana:
+
+- open [http://localhost:13000](http://localhost:13000)
+- Dashboards -> search `ShopBack Cashback Ledger (Demo)`
+- dashboard should contain 6 panels
+
+### Datasource UID mismatch fix
+
+If panels show no data and datasource UID differs from dashboard JSON:
+
+```bash
+kubectl -n monitoring port-forward svc/kps-grafana 13000:80
+```
+
+In another terminal, check actual Prometheus datasource UID:
+
+```bash
+curl -s -u admin:admin http://localhost:13000/api/datasources | grep -o '\"uid\":\"[^\"]*\"'
+```
+
+Then update `sb-ledger-dashboard.json` datasource UID, regenerate `provisioning.yaml`, reapply, and restart Grafana.
+
+## 7. Apply Prometheus Alerts
+
+Create alert rules:
+
+```bash
+mkdir -p infra/monitoring/alerts
+```
+
+- rules file: `infra/monitoring/alerts/sb-ledger-alerts.yaml`
+- metadata label `release: kps` is required for this chart default `ruleSelector`
+- includes:
+  - `SBLedgerApiHigh5xxRate` (5xx ratio > 1% for 5m)
+  - `SBLedgerInboxFailedNonZero` (`worker_inbox_failed > 0` for 1m)
+
+Apply and verify:
+
+```bash
+kubectl apply -f infra/monitoring/alerts/sb-ledger-alerts.yaml
+kubectl -n monitoring get prometheusrules | grep sb-ledger
+```
+
+Optional check in Prometheus UI:
+
+- [http://localhost:19090/alerts](http://localhost:19090/alerts)
+
+## 8. Troubleshooting
 
 Prometheus pod `ImagePullBackOff`:
 

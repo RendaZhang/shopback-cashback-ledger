@@ -462,6 +462,21 @@ Then open:
 - username: `admin`
 - password: `admin`
 
+5. Verify dashboard exists:
+
+- Dashboards -> search `ShopBack Cashback Ledger (Demo)`
+- expected: one dashboard with 6 panels
+
+6. Verify alert rules are loaded:
+
+```bash
+kubectl -n monitoring get prometheusrules | grep sb-ledger
+```
+
+Optional:
+
+- open [http://localhost:19090/alerts](http://localhost:19090/alerts)
+
 ## 15. Canary Traffic Mixing and Rollback
 
 1. Confirm deployments exist:

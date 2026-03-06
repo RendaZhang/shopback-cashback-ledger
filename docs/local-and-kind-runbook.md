@@ -106,6 +106,7 @@ curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|w
 7. Optional: install Prometheus + Grafana stack
 
 - follow [monitoring-prometheus-grafana.md](monitoring-prometheus-grafana.md)
+- includes auto-scrape setup, Grafana dashboard provisioning, and alert rules
 
 ## Canary Runbook (Same Service Selector)
 

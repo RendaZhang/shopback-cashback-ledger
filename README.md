@@ -222,13 +222,6 @@ kubectl -n sb-ledger get deploy api api-canary
 for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
 ```
 
-## Monitoring Stack (Prometheus + Grafana)
-
-Install and wire auto-scraping for API/worker metrics:
-
-- follow [docs/monitoring-prometheus-grafana.md](docs/monitoring-prometheus-grafana.md)
-- includes kube-prometheus-stack install, ServiceMonitors, target verification, and Grafana access
-
 Expected: most responses show `v1`, and some show `v2-canary`.
 
 4. Roll back canary quickly:
@@ -242,6 +235,13 @@ kubectl -n sb-ledger scale deploy/api-canary --replicas=0
 ```bash
 for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
 ```
+
+## Monitoring Stack (Prometheus + Grafana)
+
+Install and wire monitoring for API/worker metrics, dashboards, and alerts:
+
+- follow [docs/monitoring-prometheus-grafana.md](docs/monitoring-prometheus-grafana.md)
+- includes kube-prometheus-stack install, ServiceMonitors, Prometheus target verification, Grafana dashboard provisioning, and PrometheusRule alerts
 
 ## Prisma and Migration Runtime Contract
 
