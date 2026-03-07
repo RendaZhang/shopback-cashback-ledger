@@ -541,7 +541,103 @@ If UID differs from `infra/monitoring/grafana/sb-ledger-dashboard.json`, update 
 - alert rules are loaded in Prometheus
 - worker metrics include `worker_cashback_rule_cache_hits_total`, `worker_cashback_rule_cache_misses_total`, and `worker_order_confirmed_handler_duration_seconds`
 
-## 15. Load Test Baseline (k6)
+## 15. Fault Drill: Worker Down and Recovery
+
+Goal: verify eventual consistency and self-recovery under worker downtime.
+
+1. Open Grafana and watch:
+
+- `worker_outbox_pending`
+- `worker_inbox_failed`
+- optional: API QPS panel
+
+Note: in this repo, one worker process runs both outbox publish and consumer. When worker is down, the first backlog signal is usually `worker_outbox_pending` (not `worker_inbox_pending`).
+
+2. Generate traffic batch A (worker up):
+
+```bash
+for i in $(seq 1 200); do
+  oid=$(curl -s -X POST ${K8S_BASE_URL}/orders \
+    -H 'Content-Type: application/json' \
+    -H "Idempotency-Key: drill-create-$i" \
+    -H "X-User-Id: drill_u_$((i%10))" \
+    -d "{\"userId\":\"drill_u_$((i%10))\",\"merchantId\":\"m_1\",\"amount\":100,\"currency\":\"SGD\"}" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
+  curl -s -X POST ${K8S_BASE_URL}/orders/$oid/confirm \
+    -H "Idempotency-Key: drill-confirm-$i" \
+    -H "X-User-Id: drill_u_$((i%10))" >/dev/null
+done
+```
+
+Expected steady state: `worker_outbox_pending` stays near 0.
+
+3. Scale worker down:
+
+```bash
+kubectl -n sb-ledger scale deploy/worker --replicas=0
+kubectl -n sb-ledger get pods -l app=worker
+```
+
+4. Generate traffic batch B (worker down):
+
+```bash
+for i in $(seq 201 400); do
+  oid=$(curl -s -X POST ${K8S_BASE_URL}/orders \
+    -H 'Content-Type: application/json' \
+    -H "Idempotency-Key: drill-create-$i" \
+    -H "X-User-Id: drill_u_$((i%10))" \
+    -d "{\"userId\":\"drill_u_$((i%10))\",\"merchantId\":\"m_1\",\"amount\":100,\"currency\":\"SGD\"}" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['id'])")
+  curl -s -X POST ${K8S_BASE_URL}/orders/$oid/confirm \
+    -H "Idempotency-Key: drill-confirm-$i" \
+    -H "X-User-Id: drill_u_$((i%10))" >/dev/null
+done
+```
+
+Expected during downtime:
+
+- `worker_outbox_pending` rises
+- `worker_inbox_failed` remains 0
+
+5. Recover worker:
+
+```bash
+kubectl -n sb-ledger scale deploy/worker --replicas=1
+kubectl -n sb-ledger rollout status deploy/worker
+```
+
+Expected after recovery:
+
+- `worker_outbox_pending` drains back to near 0
+- no sustained `worker_inbox_failed`
+
+6. SQL evidence:
+
+```bash
+kubectl -n sb-ledger exec deploy/postgres -- psql -U ledger -d ledger -c \
+"select status, count(*) from \"OutboxEvent\" group by status order by status;"
+
+kubectl -n sb-ledger exec deploy/postgres -- psql -U ledger -d ledger -c \
+"select status, count(*) from \"InboxEvent\" group by status order by status;"
+```
+
+Expected: outbox shows `PENDING` growth during downtime and mostly/fully `SENT` after recovery; inbox `FAILED` should stay 0 in this drill.
+
+7. Balance spot-check:
+
+```bash
+curl -s ${K8S_BASE_URL}/users/drill_u_1/cashback-balance
+```
+
+Expected: balance reflects recovered async processing.
+
+### Pass Criteria
+
+- worker down causes observable backlog growth
+- worker recovery drains backlog without data loss
+- balance endpoint confirms eventual consistency outcome
+
+## 16. Load Test Baseline (k6)
 
 1. Use script:
 
@@ -588,7 +684,7 @@ Note:
 - threshold expectations match the target profile for the run
 - key metrics are recorded into `docs/loadtest-baseline.md`
 
-## 16. Canary Traffic Mixing and Rollback
+## 17. Canary Traffic Mixing and Rollback
 
 1. Confirm deployments exist:
 
@@ -631,7 +727,7 @@ kubectl -n sb-ledger scale deploy/api-canary --replicas=0
 for i in $(seq 1 10); do curl -s ${K8S_BASE_URL}/health; echo; done
 ```
 
-## 17. Automated Checks
+## 18. Automated Checks
 
 ```bash
 pnpm lint
@@ -643,7 +739,7 @@ pnpm test
 
 - all commands exit with status `0`
 
-## 18. Cleanup
+## 19. Cleanup
 
 Local:
 

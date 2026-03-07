@@ -198,3 +198,39 @@ Correlate metrics, logs, and DB states (`OutboxEvent`, `InboxEvent`, `LedgerEntr
 The system is designed for real failure modes: retries, crashes, duplicates, and partial outages.
 
 Core principle: accept at-least-once delivery, enforce idempotency in storage, and make failure states observable and recoverable.
+
+## 13. Fault Drill: Worker Down -> Backlog -> Recovery
+
+### Goal
+
+Demonstrate eventual consistency and operability:
+
+- worker down => backlog increases
+- worker back => backlog drains to near zero
+- no data loss; ledger idempotency prevents double credit
+
+### Steps (kind)
+
+1. Generate create+confirm traffic continuously.
+2. Scale worker to zero:
+   - `kubectl -n sb-ledger scale deploy/worker --replicas=0`
+3. Keep generating traffic while worker is down.
+4. Scale worker back:
+   - `kubectl -n sb-ledger scale deploy/worker --replicas=1`
+   - `kubectl -n sb-ledger rollout status deploy/worker`
+
+### Evidence
+
+- Grafana:
+  - in current topology (single worker process doing outbox publish + consume): `worker_outbox_pending` rises during downtime, then drains after recovery
+  - `worker_inbox_failed` should stay at `0`
+- SQL:
+  - `select status, count(*) from "OutboxEvent" group by status order by status;`
+  - `select status, count(*) from "InboxEvent" group by status order by status;`
+
+### Key Design Points
+
+- Outbox ensures confirmed orders persist publish intent durably.
+- Inbox + retry provide durable processing with backoff and replayability.
+- Ledger uniqueness (`orderId`, `type`) keeps credit idempotent under at-least-once delivery.
+- If publisher/consumer are split into separate deployments, downtime signal focus can shift from outbox backlog to inbox backlog/lag.

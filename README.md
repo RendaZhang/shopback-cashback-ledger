@@ -318,7 +318,7 @@ Manual deployment and monitoring installation:
 Scenario verification and expected results:
 
 - follow [docs/testing-playbook.md](docs/testing-playbook.md)
-- includes Prometheus target checks, Grafana dashboard checks, and alert validation
+- includes Prometheus target checks, Grafana dashboard checks, alert validation, and worker down/recovery fault drill
 
 ### Metrics
 
