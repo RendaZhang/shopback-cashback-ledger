@@ -23,7 +23,33 @@ This file records load-test runs in a structured, append-only format for long-te
 | LT-002 | 2026-03-06 | Redis cache + IP-based throttle | IP, 300/60s per pod | 7.8ms | 92.30% | 255.32 req/s | 244.47 iter/s | FAIL (`http_req_failed`) |
 | LT-003 | 2026-03-06 | Redis cache + user throttler guard | `X-User-Id` first, fallback IP, 600/60s | 20.84ms | 0.00% | 385.05 req/s | 192.53 iter/s | PASS |
 
-## 3. Detailed Runs
+## 3. Interpretation and Limitations
+
+### 3.1 Why LT-001 and LT-003 p95 are both around ~20ms
+
+- The k6 script measures API request latency for `POST /orders` and `POST /orders/:id/confirm`.
+- Cashback-rule Redis cache is consumed mainly in the worker async path (`OrderConfirmed` processing), not in the synchronous confirm API critical path.
+- Therefore, API p95 can stay similar even when worker-side cache is effective.
+
+### 3.2 Why LT-002 p95 dropped to 7.8ms but is not better
+
+- LT-002 has `http_req_failed=92.30%` because IP-based throttling generated many fast `429` responses.
+- Fast failures can reduce measured p95 while making the run operationally invalid.
+- LT-002 is not directly comparable with LT-001/LT-003 for “good latency under successful traffic”.
+
+### 3.3 What to use for cache effectiveness
+
+- Primary: worker metrics
+  - `worker_cashback_rule_cache_hits_total`
+  - `worker_cashback_rule_cache_misses_total`
+  - `worker_order_confirmed_handler_duration_seconds`
+- Supporting: Redis stats (`keyspace_hits`, `keyspace_misses`) and cache key TTL/value checks.
+- End-to-end: measure confirm-to-credit delay instead of only API `http_req_duration`.
+- Example verification pattern:
+  - first order on a merchant: `misses_total` increases
+  - subsequent orders on same merchant within TTL: `hits_total` increases
+
+## 4. Detailed Runs
 
 ### LT-001
 
@@ -112,7 +138,7 @@ sum(rate(http_requests_total{status="429"}[1m]))
 - k6 requests include `X-User-Id: u_<VU>`.
 - User-based throttling prevents cross-user contention and keeps error rate low for mixed-user traffic.
 
-## Template for Future Runs
+## 5. Template for Future Runs
 
 When adding a new run:
 

@@ -3,7 +3,7 @@
   "title": "ShopBack Cashback Ledger (Demo)",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
   "tags": [
     "sb-ledger",
@@ -143,6 +143,53 @@
           "expr": "rate(worker_dlq_produced_total[5m])",
           "legendFormat": "dlq_rate",
           "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker Cashback Rule Cache (hits/misses rate)",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(worker_cashback_rule_cache_hits_total[1m])",
+          "legendFormat": "hits_rate",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(worker_cashback_rule_cache_misses_total[1m])",
+          "legendFormat": "misses_rate",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker OrderConfirmed Handler p95 (seconds)",
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(worker_order_confirmed_handler_duration_seconds_bucket[5m])) by (le, outcome))",
+          "legendFormat": "{{outcome}}_p95",
+          "refId": "A"
         }
       ]
     }

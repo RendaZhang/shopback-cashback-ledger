@@ -250,7 +250,7 @@ pnpm dev:worker
 ```bash
 curl -s http://localhost:3000/health
 curl -s http://localhost:3000/metrics | grep -E 'http_requests_total|http_request_duration_seconds' | head
-curl -s http://localhost:9100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
+curl -s http://localhost:9100/metrics | grep -E 'worker_(inbox_|outbox_|dlq_|cashback_rule_cache_|order_confirmed_handler_duration_seconds)' | head
 ```
 
 ## 5. Next Step

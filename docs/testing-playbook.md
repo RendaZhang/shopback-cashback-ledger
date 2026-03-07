@@ -92,10 +92,10 @@ Expected: Prometheus text output (not JSON envelope), including HTTP RED metrics
 3. Worker metrics check:
 
 ```bash
-curl -s ${WORKER_METRICS_URL}/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
+curl -s ${WORKER_METRICS_URL}/metrics | grep -E 'worker_(inbox_|outbox_|dlq_|cashback_rule_cache_|order_confirmed_handler_duration_seconds)' | head
 ```
 
-Expected: worker metrics include backlog gauges and retry/DLQ counters.
+Expected: worker metrics include backlog/retry/DLQ, cashback-rule cache hits/misses, and handler latency histogram.
 
 4. Swagger:
 
@@ -523,7 +523,8 @@ In Dashboards, search `ShopBack Cashback Ledger (Demo)`.
 
 Expected:
 
-- one dashboard with 6 panels
+- one dashboard with 8 panels
+- includes worker panels for cache hit/miss rate and handler p95 latency
 
 5. Optional datasource UID mismatch check (when panels are empty):
 
@@ -538,6 +539,7 @@ If UID differs from `infra/monitoring/grafana/sb-ledger-dashboard.json`, update 
 - Prometheus targets for API/worker are `UP`
 - Grafana dashboard `ShopBack Cashback Ledger (Demo)` is visible
 - alert rules are loaded in Prometheus
+- worker metrics include `worker_cashback_rule_cache_hits_total`, `worker_cashback_rule_cache_misses_total`, and `worker_order_confirmed_handler_duration_seconds`
 
 ## 15. Load Test Baseline (k6)
 

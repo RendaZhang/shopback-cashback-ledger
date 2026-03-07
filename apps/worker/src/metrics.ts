@@ -1,4 +1,4 @@
-import { Counter, Gauge, Registry, collectDefaultMetrics } from 'prom-client';
+import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
 
 type WorkerMetricsGlobals = typeof globalThis & {
   __sb_worker_registry?: Registry;
@@ -7,6 +7,9 @@ type WorkerMetricsGlobals = typeof globalThis & {
   __sb_outbox_pending?: Gauge;
   __sb_dlq_produced_total?: Counter;
   __sb_inbox_retries_total?: Counter;
+  __sb_cashback_rule_cache_hits_total?: Counter;
+  __sb_cashback_rule_cache_misses_total?: Counter;
+  __sb_order_confirmed_handler_duration_seconds?: Histogram<'outcome'>;
 };
 
 const g = globalThis as WorkerMetricsGlobals;
@@ -57,8 +60,37 @@ export const inboxRetriesTotal: Counter =
     registers: [registry],
   });
 
+export const cashbackRuleCacheHitsTotal: Counter =
+  g.__sb_cashback_rule_cache_hits_total ??
+  new Counter({
+    name: 'worker_cashback_rule_cache_hits_total',
+    help: 'Total cashback rule cache hits in worker processing path',
+    registers: [registry],
+  });
+
+export const cashbackRuleCacheMissesTotal: Counter =
+  g.__sb_cashback_rule_cache_misses_total ??
+  new Counter({
+    name: 'worker_cashback_rule_cache_misses_total',
+    help: 'Total cashback rule cache misses in worker processing path',
+    registers: [registry],
+  });
+
+export const orderConfirmedHandlerDurationSeconds: Histogram<'outcome'> =
+  g.__sb_order_confirmed_handler_duration_seconds ??
+  new Histogram({
+    name: 'worker_order_confirmed_handler_duration_seconds',
+    help: 'OrderConfirmed handler execution time in seconds',
+    labelNames: ['outcome'],
+    buckets: [0.001, 0.003, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5],
+    registers: [registry],
+  });
+
 g.__sb_inbox_pending = inboxPendingGauge;
 g.__sb_inbox_failed = inboxFailedGauge;
 g.__sb_outbox_pending = outboxPendingGauge;
 g.__sb_dlq_produced_total = dlqProducedTotal;
 g.__sb_inbox_retries_total = inboxRetriesTotal;
+g.__sb_cashback_rule_cache_hits_total = cashbackRuleCacheHitsTotal;
+g.__sb_cashback_rule_cache_misses_total = cashbackRuleCacheMissesTotal;
+g.__sb_order_confirmed_handler_duration_seconds = orderConfirmedHandlerDurationSeconds;

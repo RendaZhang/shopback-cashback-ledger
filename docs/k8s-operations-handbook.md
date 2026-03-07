@@ -135,7 +135,7 @@ curl -s http://localhost:30080/health
 curl -s http://localhost:30080/metrics | head -n 30
 
 kubectl -n $NS port-forward deploy/worker 19100:9100
-curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total'
+curl -s http://localhost:19100/metrics | grep -E 'worker_(inbox_|outbox_|dlq_|cashback_rule_cache_|order_confirmed_handler_duration_seconds)'
 ```
 
 ### 4.5 Topic and Stream Operations

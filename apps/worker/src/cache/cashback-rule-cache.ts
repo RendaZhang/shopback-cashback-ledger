@@ -1,5 +1,6 @@
 import { Prisma } from '@sb/db';
 import { getRedis } from './redis.client';
+import { cashbackRuleCacheHitsTotal, cashbackRuleCacheMissesTotal } from '../metrics';
 
 type DbRule = { rate: Prisma.Decimal; cap: Prisma.Decimal | null } | null;
 
@@ -48,7 +49,11 @@ export async function getCashbackRule(
   const cacheKey = key(merchantId);
 
   const cached = await readCache(redis, cacheKey);
-  if (cached) return toDecimalRule(cached);
+  if (cached) {
+    cashbackRuleCacheHitsTotal.inc(1);
+    return toDecimalRule(cached);
+  }
+  cashbackRuleCacheMissesTotal.inc(1);
 
   const lockKey = `${cacheKey}:lock`;
   const gotLock = await acquireLock(redis, lockKey);
@@ -57,7 +62,10 @@ export async function getCashbackRule(
     if (!gotLock) {
       await new Promise((resolve) => setTimeout(resolve, lockWaitMs));
       const retried = await readCache(redis, cacheKey);
-      if (retried) return toDecimalRule(retried);
+      if (retried) {
+        cashbackRuleCacheHitsTotal.inc(1);
+        return toDecimalRule(retried);
+      }
     }
 
     const rule = await reader.cashbackRule.findUnique({ where: { merchantId } });

@@ -137,6 +137,8 @@ Rollback:
 - backlog: `worker_inbox_pending`, `worker_outbox_pending`
 - failures: `worker_inbox_failed`
 - pressure: `worker_inbox_retries_total`, `worker_dlq_produced_total`
+- cache effectiveness: `worker_cashback_rule_cache_hits_total`, `worker_cashback_rule_cache_misses_total`
+- handler latency: `worker_order_confirmed_handler_duration_seconds` (track p95 by `outcome`)
 
 ### SLO Proposal
 

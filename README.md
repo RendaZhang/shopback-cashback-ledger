@@ -215,7 +215,7 @@ kubectl -n sb-ledger port-forward deploy/worker 19100:9100
 Open another terminal:
 
 ```bash
-curl -s http://localhost:19100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
+curl -s http://localhost:19100/metrics | grep -E 'worker_(inbox_|outbox_|dlq_|cashback_rule_cache_|order_confirmed_handler_duration_seconds)' | head
 ```
 
 Expected: plain-text Prometheus output with worker business metrics, for example:
@@ -225,6 +225,9 @@ Expected: plain-text Prometheus output with worker business metrics, for example
 - `worker_outbox_pending`
 - `worker_dlq_produced_total`
 - `worker_inbox_retries_total`
+- `worker_cashback_rule_cache_hits_total`
+- `worker_cashback_rule_cache_misses_total`
+- `worker_order_confirmed_handler_duration_seconds`
 
 10. Verify API rate limiting and 429 observability:
 
