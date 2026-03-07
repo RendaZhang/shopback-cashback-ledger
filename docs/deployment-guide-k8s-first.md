@@ -20,16 +20,69 @@ After deployment, run scenario checks from [testing-playbook.md](testing-playboo
 - Node.js 22+
 - pnpm 10+
 
-## 2. Kubernetes Path (Primary)
+## 2. One-Command Bootstrap (Recommended)
 
-### 2.1 Create Cluster
+Run everything in sequence with one command:
+
+```bash
+make k8s-up
+```
+
+Script entrypoint: `scripts/k8s-first-up.sh`.
+
+What this command does:
+
+- checks prerequisites (`docker`, `kind`, `kubectl`, `helm`, `make`, `curl`)
+- creates/reuses kind cluster `sb-ledger`
+- builds and loads API/worker images
+- deploys base resources in dependency order and waits for rollout success
+- ensures `order.events` and `order.events.dlq` exist
+- installs monitoring stack and applies monitors/dashboard/alerts
+- runs smoke checks for health, metrics, worker metrics, and key monitoring resources
+
+Useful environment toggles:
+
+```bash
+# skip image rebuild/load
+SKIP_BUILD=true make k8s-up
+
+# skip monitoring setup
+ENABLE_MONITORING=false make k8s-up
+
+# skip smoke checks
+RUN_SMOKE_TESTS=false make k8s-up
+```
+
+The script is idempotent and safe to rerun after interruption.
+
+CI also validates this flow with a scheduled/manual workflow:
+
+- `.github/workflows/k8s-bootstrap.yml`
+
+CLI-style options are also supported:
+
+```bash
+make k8s-up ARGS="--skip-build --skip-monitoring --skip-smoke"
+```
+
+Post-bootstrap verification and teardown:
+
+```bash
+make k8s-smoke
+make k8s-down
+make k8s-down ARGS="--prune-docker"
+```
+
+## 3. Kubernetes Path (Manual, Step-by-Step)
+
+### 3.1 Create Cluster
 
 ```bash
 kind create cluster --name sb-ledger --config infra/k8s/kind-config.yaml
 kubectl cluster-info
 ```
 
-### 2.2 Build and Load Images
+### 3.2 Build and Load Images
 
 ```bash
 make docker-build
@@ -37,7 +90,7 @@ kind load docker-image sb-ledger-api:dev --name sb-ledger
 kind load docker-image sb-ledger-worker:dev --name sb-ledger
 ```
 
-### 2.3 Apply Namespace, Config, and Secrets
+### 3.3 Apply Namespace, Config, and Secrets
 
 ```bash
 kubectl apply -f infra/k8s/base/namespace.yaml
@@ -47,7 +100,7 @@ kubectl -n sb-ledger get configmap sb-ledger-config
 kubectl -n sb-ledger get secret sb-ledger-secret
 ```
 
-### 2.4 Deploy Core Infrastructure
+### 3.4 Deploy Core Infrastructure
 
 ```bash
 kubectl apply -f infra/k8s/base/postgres.yaml
@@ -59,7 +112,7 @@ kubectl -n sb-ledger rollout status deploy/redis
 kubectl -n sb-ledger rollout status deploy/redpanda
 ```
 
-### 2.5 Bootstrap Kafka Topics
+### 3.5 Bootstrap Kafka Topics
 
 The bootstrap job creates both topics:
 
@@ -73,7 +126,7 @@ kubectl -n sb-ledger logs job/redpanda-topics
 kubectl -n sb-ledger exec deploy/redpanda -- rpk topic list
 ```
 
-### 2.6 Deploy Application Workloads
+### 3.6 Deploy Application Workloads
 
 ```bash
 kubectl apply -f infra/k8s/base/api.yaml
@@ -86,7 +139,7 @@ kubectl -n sb-ledger rollout status deploy/api-canary
 kubectl -n sb-ledger rollout status deploy/worker
 ```
 
-### 2.7 Verify Core Runtime
+### 3.7 Verify Core Runtime
 
 ```bash
 kubectl -n sb-ledger get pods
@@ -99,7 +152,7 @@ curl -s http://localhost:30080/health
 curl -s http://localhost:30080/metrics | grep -E 'http_requests_total|http_request_duration_seconds' | head
 ```
 
-### 2.8 Install Monitoring Stack
+### 3.8 Install Monitoring Stack
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -112,7 +165,7 @@ helm upgrade --install kps prometheus-community/kube-prometheus-stack \
 kubectl -n monitoring get pods
 ```
 
-### 2.9 Apply Monitoring Resources
+### 3.9 Apply Monitoring Resources
 
 ```bash
 kubectl apply -f infra/monitoring/monitors
@@ -125,7 +178,7 @@ kubectl -n monitoring rollout restart deploy/kps-grafana
 kubectl -n monitoring rollout status deploy/kps-grafana
 ```
 
-### 2.10 Verify Prometheus and Grafana
+### 3.10 Verify Prometheus and Grafana
 
 Prometheus:
 
@@ -156,11 +209,11 @@ Open [http://localhost:13000](http://localhost:13000) with `admin/admin`, then v
 
 If dashboard panels show no data, verify Grafana datasource UID and update `infra/monitoring/grafana/sb-ledger-dashboard.json` to match before reapplying `infra/monitoring/grafana/provisioning.yaml`.
 
-## 3. Local Path (Secondary, Non-Kubernetes)
+## 4. Local Path (Secondary, Non-Kubernetes)
 
 Use this path when you only need local development or local scenario checks.
 
-### 3.1 Start Infra and Prepare Environment
+### 4.1 Start Infra and Prepare Environment
 
 ```bash
 pnpm install
@@ -171,7 +224,7 @@ pnpm db:generate
 pnpm db:migrate
 ```
 
-### 3.2 Create Topics
+### 4.2 Create Topics
 
 ```bash
 docker exec -i sb-redpanda rpk topic create order.events -p 1 -r 1 || true
@@ -179,7 +232,7 @@ docker exec -i sb-redpanda rpk topic create order.events.dlq -p 1 -r 1 || true
 docker exec -i sb-redpanda rpk topic list
 ```
 
-### 3.3 Start API and Worker
+### 4.3 Start API and Worker
 
 Run in two terminals:
 
@@ -192,7 +245,7 @@ pnpm dev:api
 pnpm dev:worker
 ```
 
-### 3.4 Verify Local Runtime
+### 4.4 Verify Local Runtime
 
 ```bash
 curl -s http://localhost:3000/health
@@ -200,6 +253,6 @@ curl -s http://localhost:3000/metrics | grep -E 'http_requests_total|http_reques
 curl -s http://localhost:9100/metrics | grep -E 'worker_inbox_|worker_outbox_|worker_dlq_|worker_inbox_retries_total' | head
 ```
 
-## 4. Next Step
+## 5. Next Step
 
 Run [testing-playbook.md](testing-playbook.md) for full scenario validation and test data checks.

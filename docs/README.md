@@ -9,7 +9,7 @@ This folder keeps the canonical deployment, testing, operations, and architectur
 ## Recommended Reading Order
 
 1. [deployment-guide-k8s-first.md](deployment-guide-k8s-first.md)
-   - Kubernetes-first deployment guide with local deployment as secondary option
+   - includes one-command bootstrap (`make k8s-up`), smoke/teardown helpers, and manual path
 2. [testing-playbook.md](testing-playbook.md)
    - run all validation and test scenarios in one place
 3. [k8s-operations-handbook.md](k8s-operations-handbook.md)
@@ -56,3 +56,5 @@ This folder keeps the canonical deployment, testing, operations, and architectur
 - run `make docs-check` from repo root to validate:
   - broken local links in markdown
   - heading hierarchy jumps and H1 presence
+- CI bootstrap validation workflow:
+  - `.github/workflows/k8s-bootstrap.yml` (scheduled + manual trigger)

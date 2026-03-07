@@ -14,7 +14,35 @@ This is the Kubernetes-first operations cheat sheet for day-to-day deployment, t
 
 ## 2. Minimal Quickstart
 
-### 2.1 Local Development
+### 2.1 One-Command k8s Bootstrap (Recommended)
+
+```bash
+make k8s-up
+```
+
+Useful toggles:
+
+```bash
+SKIP_BUILD=true make k8s-up
+ENABLE_MONITORING=false make k8s-up
+RUN_SMOKE_TESTS=false make k8s-up
+```
+
+CLI-style flags:
+
+```bash
+make k8s-up ARGS="--skip-build --skip-monitoring --skip-smoke"
+```
+
+Post-bootstrap checks and teardown:
+
+```bash
+make k8s-smoke
+make k8s-down
+make k8s-down ARGS="--prune-docker"
+```
+
+### 2.2 Local Development
 
 ```bash
 pnpm install
@@ -35,7 +63,7 @@ curl -s http://localhost:3000/metrics | head
 curl -s http://localhost:9100/metrics | head
 ```
 
-### 2.2 kind Quickstart
+### 2.3 kind Quickstart (Manual)
 
 ```bash
 kind create cluster --name sb-ledger --config infra/k8s/kind-config.yaml

@@ -119,6 +119,36 @@ curl -s http://localhost:3000/users/u_1/cashback-balance
 
 ## Local kind + Kubernetes Deployment
 
+Recommended one-command bootstrap (k8s-first):
+
+```bash
+make k8s-up
+```
+
+Optional toggles:
+
+```bash
+SKIP_BUILD=true make k8s-up
+ENABLE_MONITORING=false make k8s-up
+RUN_SMOKE_TESTS=false make k8s-up
+```
+
+CLI-style flags:
+
+```bash
+make k8s-up ARGS="--skip-build --skip-monitoring --skip-smoke"
+```
+
+Extra helpers:
+
+```bash
+make k8s-smoke
+make k8s-down
+make k8s-down ARGS="--prune-docker"
+```
+
+Manual step-by-step (kept for learning/debugging):
+
 1. Create cluster:
 
 ```bash

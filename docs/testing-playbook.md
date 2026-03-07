@@ -4,6 +4,8 @@ This guide is the primary scenario validation document.
 
 Complete deployment first via [deployment-guide-k8s-first.md](deployment-guide-k8s-first.md), then run the test scenarios here.
 
+For k8s-first setup, you can bootstrap everything with `make k8s-up`.
+
 **Owner:** Platform Engineering (Demo)  
 **Last Updated:** 2026-03-07  
 **Applies To:** Local Docker Compose and kind `sb-ledger`

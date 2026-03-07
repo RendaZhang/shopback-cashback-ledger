@@ -1,0 +1,56 @@
+name: K8s Bootstrap Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      enable_monitoring:
+        description: "Run monitoring install/checks (slower)"
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup kind
+        uses: engineerd/setup-kind@v0.6.2
+
+      - name: Resolve monitoring mode
+        shell: bash
+        run: |
+          MON=false
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.enable_monitoring }}" == "true" ]]; then
+            MON=true
+          fi
+          echo "ENABLE_MONITORING=${MON}" >> "$GITHUB_ENV"
+          echo "Monitoring enabled: ${MON}"
+
+      - name: One-command bootstrap
+        shell: bash
+        run: |
+          ENABLE_MONITORING=${ENABLE_MONITORING} make k8s-up
+
+      - name: Smoke verification
+        shell: bash
+        run: |
+          ENABLE_MONITORING=${ENABLE_MONITORING} make k8s-smoke
+
+      - name: Teardown
+        if: always()
+        shell: bash
+        run: |
+          make k8s-down

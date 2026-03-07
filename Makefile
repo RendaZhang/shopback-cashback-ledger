@@ -1,6 +1,6 @@
 COMPOSE = docker compose -f infra/docker-compose/docker-compose.yml
 
-.PHONY: up down ps logs reset docker-build docs-check
+.PHONY: up down ps logs reset docker-build docs-check k8s-up k8s-smoke k8s-down
 
 up:
 	$(COMPOSE) up -d
@@ -23,3 +23,12 @@ docker-build:
 
 docs-check:
 	./scripts/docs-check.sh
+
+k8s-up:
+	./scripts/k8s-first-up.sh $(ARGS)
+
+k8s-smoke:
+	./scripts/k8s-smoke.sh $(ARGS)
+
+k8s-down:
+	./scripts/k8s-down.sh $(ARGS)
