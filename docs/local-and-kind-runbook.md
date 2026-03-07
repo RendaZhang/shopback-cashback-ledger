@@ -80,12 +80,18 @@ kubectl apply -k infra/k8s/base
 kubectl -n sb-ledger get pods
 ```
 
-4. Create topics in cluster:
+4. Topics are auto-created in cluster (via Job), then verify:
 
 ```bash
-kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events -p 1 -r 1 || true
-kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events.dlq -p 1 -r 1 || true
+kubectl -n sb-ledger wait --for=condition=complete job/redpanda-topics --timeout=180s || true
+kubectl -n sb-ledger logs job/redpanda-topics || true
+kubectl -n sb-ledger exec deploy/redpanda -- rpk topic list
 ```
+
+Expected:
+
+- `order.events` exists
+- `order.events.dlq` exists
 
 5. Validate API endpoint:
 
@@ -289,4 +295,8 @@ curl -s http://localhost:30080/health
 
 # Find the pod with worker label
 kubectl -n sb-ledger get pods -l app=worker
+
+# Create topics in cluster:
+kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events -p 1 -r 1 || true
+kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events.dlq -p 1 -r 1 || true
 ```

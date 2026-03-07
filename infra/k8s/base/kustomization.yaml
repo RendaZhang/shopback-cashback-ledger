@@ -5,6 +5,7 @@ resources:
   - postgres.yaml
   - redis.yaml
   - redpanda.yaml
+  - redpanda-topics-job.yaml
   - api.yaml
   - api-canary.yaml
   - worker.yaml

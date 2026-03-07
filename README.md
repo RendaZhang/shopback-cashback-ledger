@@ -146,13 +146,15 @@ kubectl apply -k infra/k8s/base
 kubectl -n sb-ledger get pods
 ```
 
-5. Create Kafka topics in-cluster:
+5. Topics are auto-created in-cluster (via Job), then verify:
 
 ```bash
-kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events -p 1 -r 1 || true
-kubectl -n sb-ledger exec deploy/redpanda -- rpk topic create order.events.dlq -p 1 -r 1 || true
+kubectl -n sb-ledger wait --for=condition=complete job/redpanda-topics --timeout=180s || true
+kubectl -n sb-ledger logs job/redpanda-topics || true
 kubectl -n sb-ledger exec deploy/redpanda -- rpk topic list
 ```
+
+Expected: both `order.events` and `order.events.dlq` are present.
 
 6. Open Swagger:
 

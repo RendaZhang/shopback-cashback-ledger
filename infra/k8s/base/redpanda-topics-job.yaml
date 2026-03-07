@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redpanda-topics
+  namespace: sb-ledger
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: rpk
+          image: docker.redpanda.com/redpandadata/redpanda:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              echo "[topics] waiting for redpanda..."
+              until rpk cluster info --brokers redpanda:9092 >/dev/null 2>&1; do
+                sleep 2
+              done
+              echo "[topics] ensuring required topics exist"
+              rpk topic create order.events -p 1 -r 1 --brokers redpanda:9092 || true
+              rpk topic create order.events.dlq -p 1 -r 1 --brokers redpanda:9092 || true
+              rpk topic list --brokers redpanda:9092
