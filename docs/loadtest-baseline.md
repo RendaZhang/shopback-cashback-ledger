@@ -23,7 +23,15 @@ This file records load-test runs in a structured, append-only format for long-te
 | LT-002 | 2026-03-06 | Redis cache + IP-based throttle | IP, 300/60s per pod | 7.8ms | 92.30% | 255.32 req/s | 244.47 iter/s | FAIL (`http_req_failed`) |
 | LT-003 | 2026-03-06 | Redis cache + user throttler guard | `X-User-Id` first, fallback IP, 600/60s | 20.84ms | 0.00% | 385.05 req/s | 192.53 iter/s | PASS |
 
-## 3. Interpretation and Limitations
+## 3. Executive Takeaways
+
+- Baseline (`LT-001`, no Redis cache): p95 `22.25ms`, `0%` failure.
+- Tuned stable profile (`LT-003`, user-based throttling + cache): p95 `20.84ms`, `0%` failure.
+- The apparent best p95 (`LT-002`, `7.8ms`) is not a valid improvement because it contains `92.30%` failures (mostly fast `429` responses).
+
+Use `LT-001` vs `LT-003` for practical comparison under successful traffic; use worker metrics to evaluate cache effectiveness in the async path.
+
+## 4. Interpretation and Limitations
 
 ### 3.1 Why LT-001 and LT-003 p95 are both around ~20ms
 
@@ -49,7 +57,7 @@ This file records load-test runs in a structured, append-only format for long-te
   - first order on a merchant: `misses_total` increases
   - subsequent orders on same merchant within TTL: `hits_total` increases
 
-## 4. Detailed Runs
+## 5. Detailed Runs
 
 ### LT-001
 
@@ -138,7 +146,7 @@ sum(rate(http_requests_total{status="429"}[1m]))
 - k6 requests include `X-User-Id: u_<VU>`.
 - User-based throttling prevents cross-user contention and keeps error rate low for mixed-user traffic.
 
-## 5. Template for Future Runs
+## 6. Template for Future Runs
 
 When adding a new run:
 

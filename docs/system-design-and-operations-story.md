@@ -27,6 +27,13 @@ Key reliability risks are duplicate requests, DB/Kafka dual-write gaps, and at-l
 - idempotent ledger constraints
 - Redis cashback-rule caching
 
+Primary failure modes this design addresses:
+
+- client retries and duplicate submissions
+- inconsistency between DB commit and event publish
+- at-least-once delivery duplicates
+- day-2 recovery requirements (retry, DLQ, replay, fault drill)
+
 ## 2. 2-Minute Architecture Flow
 
 1. Client calls `POST /orders` and `POST /orders/:id/confirm`.
@@ -40,6 +47,15 @@ Key reliability risks are duplicate requests, DB/Kafka dual-write gaps, and at-l
 7. Retry loop reprocesses transient failures with backoff.
 8. Exceeded attempts become `InboxEvent=FAILED` and are sent to DLQ.
 9. Replay CLI can reset failed events for controlled reprocessing.
+
+### Contract-First API Snapshot
+
+- OpenAPI docs at `/docs`
+- `POST /orders` for order creation (idempotency supported)
+- `POST /orders/:id/confirm` for transactional confirm + outbox write
+- `GET /users/:id/cashback-balance` for ledger-derived balance
+- `POST /merchants/:id/cashback-rule` for cashback rule upsert
+- consistent response envelope: `{ requestId, data, error }`
 
 ## 3. Data Integrity Invariants
 
@@ -154,7 +170,7 @@ Error budget intuition:
 Worker pipeline operational target:
 
 - `worker_inbox_failed` should stay `0` in normal operation
-- inbox backlog should not grow unbounded in steady state
+- outbox/inbox backlog should not grow unbounded in steady state
 
 Alert examples:
 

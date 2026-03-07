@@ -1,16 +1,108 @@
 # shopback-cashback-ledger
 
-A simplified cashback/rewards ledger system for backend and system-design interviews.
+A ShopBack-style cashback ledger demo showcasing contract-first APIs, idempotency, Outbox + Kafka, Inbox retry + DLQ, Kubernetes rollout/canary, and observability (Prometheus/Grafana, alerts, and SLO framing).
 
-## What This Project Demonstrates
+## Why This Project
 
-- Contract-first API design with a consistent response envelope
-- Idempotent order creation and confirmation (`Idempotency-Key`)
-- Outbox pattern for reliable event publishing
-- Inbox + retry + DLQ flow for at-least-once consumers
-- Prisma + PostgreSQL data model for order and ledger consistency
-- API global rate limiting (`@nestjs/throttler`) with user-first tracker (`X-User-Id`, fallback IP)
-- Redis-backed cashback-rule cache shared by API invalidation and worker reads
+Cashback/reward flows are distributed and failure-prone:
+
+- client retries can duplicate requests
+- DB commit and message publish can become inconsistent
+- Kafka at-least-once delivery can duplicate events
+- operations need clear retry, DLQ, replay, and fault-drill workflows
+
+This repo keeps the scope small but demonstrates production-grade reliability patterns end-to-end.
+
+## Architecture Snapshot
+
+```mermaid
+flowchart LR
+  Client[Client] -->|REST| API[NestJS API]
+  API -->|Prisma| PG[(Postgres)]
+  API -->|Tx write| OUTBOX[(OutboxEvent)]
+  OUTBOX -->|poll| Pub[Worker loop: Outbox Publisher]
+  Pub -->|produce| RP[(Redpanda/Kafka)]
+  RP -->|consume| Con[Worker loop: Consumer]
+  Con -->|upsert| INBOX[(InboxEvent)]
+  Con -->|idempotent credit| Ledger[(LedgerEntry)]
+  Con -->|retry/backoff| INBOX
+  INBOX -->|max attempts| DLQ[(order.events.dlq)]
+```
+
+Note: in this demo, publisher and consumer are two logical loops in one worker process.
+
+## Key Properties
+
+- idempotent API via `Idempotency-Key` + request hash + cached response
+- Outbox pattern to avoid DB/Kafka dual-write gaps
+- at-least-once safe consumer with inbox dedupe and idempotent ledger constraint
+- retry with backoff, DLQ, and replay CLI
+- rolling update + canary (second deployment + shared Service)
+- API/worker metrics, Grafana dashboard, alert rules, and SLO discussion points
+
+## API Contract (Contract-First)
+
+- Swagger: `/docs`
+- `POST /orders` (supports `Idempotency-Key`)
+- `POST /orders/{id}/confirm` (transactional confirm + outbox write)
+- `GET /users/{id}/cashback-balance` (ledger aggregation)
+- `POST /merchants/{id}/cashback-rule` (rule upsert)
+
+Response envelope:
+
+```json
+{ "requestId": "...", "data": {}, "error": null }
+```
+
+## Data Model (Postgres)
+
+- `Order`
+- `CashbackRule`
+- `LedgerEntry` with `unique(orderId,type)` for idempotent credit
+- `IdempotencyKey` (key + scope + request hash + cached response)
+- `OutboxEvent` (durable publish buffer)
+- `InboxEvent` (durable processing queue with retry status)
+
+## Reliability Patterns (Interview Talking Points)
+
+### 1) Idempotency
+
+- same key + same payload hash => replay same response
+- same key + different hash => `409 Conflict`
+- DB uniqueness is a second safety net
+
+### 2) Outbox
+
+- confirm transaction writes `Order(CONFIRMED)` + `OutboxEvent(OrderConfirmed)`
+- worker publish loop retries until `SENT`
+
+### 3) Inbox + Retry + DLQ + Replay
+
+- consumer upserts `InboxEvent(sourceEventId)` to dedupe
+- retry loop handles `PENDING` with exponential backoff
+- max attempts => `FAILED` + DLQ produce
+- replay CLI resets `FAILED -> PENDING` for controlled reprocessing
+
+## Observability
+
+- API metrics: `/metrics` (HTTP RED)
+- Worker metrics: `:9100/metrics` (backlog/retry/DLQ/cache/handler latency)
+- Grafana dashboard: `ShopBack Cashback Ledger (Demo)`
+- alerts:
+  - API 5xx rate > 1% for 5 minutes
+  - `worker_inbox_failed > 0`
+
+## Load Testing and Fault Drill
+
+- k6 baseline summary:
+  - baseline profile around p95 `~23ms` (`LT-001`)
+  - tuned profile around p95 `~21ms` with user-based throttling and healthy error rate (`LT-003`)
+- detailed run registry and caveats:
+  - [docs/loadtest-baseline.md](docs/loadtest-baseline.md)
+- fault drill summary:
+  - worker down => backlog grows
+  - worker recovery => backlog drains (eventual consistency)
+  - reproducible steps in [docs/testing-playbook.md](docs/testing-playbook.md)
 
 ## Tech Stack
 

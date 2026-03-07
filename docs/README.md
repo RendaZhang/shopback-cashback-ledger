@@ -6,6 +6,8 @@ This folder keeps the canonical deployment, testing, operations, and architectur
 **Last Updated:** 2026-03-07  
 **Applies To:** Documentation under `docs/` and root `README.md`
 
+Project high-level overview (why, architecture snapshot, API/data model, reliability patterns) is in root [README.md](../README.md). This `docs/` folder focuses on deployment, testing, operations, and interview story depth.
+
 ## Recommended Reading Order
 
 1. [deployment-guide-k8s-first.md](deployment-guide-k8s-first.md)
