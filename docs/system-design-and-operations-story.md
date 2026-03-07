@@ -14,6 +14,12 @@ It combines:
 - release/canary strategy
 - SLO and alert framing
 
+Related decision records:
+
+- [adr/ADR-001-idempotency.md](adr/ADR-001-idempotency.md)
+- [adr/ADR-002-outbox.md](adr/ADR-002-outbox.md)
+- [adr/ADR-003-at-least-once.md](adr/ADR-003-at-least-once.md)
+
 ## 1. 30-Second Pitch
 
 This system confirms orders synchronously and credits cashback asynchronously.

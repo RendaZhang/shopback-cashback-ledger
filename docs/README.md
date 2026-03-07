@@ -51,7 +51,10 @@ Project high-level overview (why, architecture snapshot, API/data model, reliabi
 
 ## Historical and Decision Notes
 
-- [adr/](adr)
+- [adr/README.md](adr/README.md)
+- [adr/ADR-001-idempotency.md](adr/ADR-001-idempotency.md)
+- [adr/ADR-002-outbox.md](adr/ADR-002-outbox.md)
+- [adr/ADR-003-at-least-once.md](adr/ADR-003-at-least-once.md)
 
 ## Documentation Quality Gate
 
