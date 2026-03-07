@@ -449,6 +449,32 @@ Baseline snapshot:
 - Kubernetes ConfigMap includes `VERSION` for API/worker runtime version tagging and canary comparisons.
 - There is no dedicated `db-migrate-job` and no Prisma initContainer in API/worker deployments.
 
+## Trade-offs & Next steps
+
+### Current trade-offs (intentional for demo)
+
+- **Single worker does both publish + consume**: simplifies deployment, but in production these are usually separate deployments for independent scaling and fault isolation.
+- **Redis caching scope**: caching is simplified (TTL + basic stampede protection). Production may add per-tenant cache policies and stronger invalidation guarantees.
+- **Schema retention**: Outbox/Inbox tables need retention policies (TTL/archival) to control storage.
+
+### Scaling & production hardening
+
+- **Ledger correctness & audit**
+  - Add daily reconciliation job: compare `Orders(CONFIRMED)` vs `LedgerEntry(CREDIT)` and repair/report mismatches.
+  - Add immutable ledger semantics and stronger invariants (e.g., append-only + reversal entries).
+- **Throughput**
+  - Partition Kafka by `userId` or `merchantId`.
+  - Batch consumer writes, tune DB indexes, and consider read replicas for balance queries.
+- **Reliability**
+  - Add circuit breaker/timeouts for downstream dependencies.
+  - Separate outbox publisher and consumer deployments; enable HPA scaling.
+- **Security**
+  - Add JWT/OAuth2 integration and RBAC; enforce tenant isolation.
+- **Data growth**
+  - Partition/shard ledger tables; cold storage for historical entries.
+- **Observability**
+  - Add distributed tracing (OTel) across API → publish → consume, and business KPIs (credited amount, settlement lag).
+
 ## Useful Commands
 
 Docker Compose:
