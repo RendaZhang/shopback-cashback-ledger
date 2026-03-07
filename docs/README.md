@@ -1,50 +1,58 @@
 # Documentation Index
 
-This folder keeps architecture, operations, reliability, and observability notes for the cashback ledger demo.
+This folder keeps the canonical deployment, testing, operations, and architecture docs for the cashback ledger demo.
+
+**Owner:** Platform Engineering (Demo)  
+**Last Updated:** 2026-03-07  
+**Applies To:** Documentation under `docs/` and root `README.md`
+
+## Recommended Reading Order
+
+1. [deployment-guide-k8s-first.md](deployment-guide-k8s-first.md)
+   - Kubernetes-first deployment guide with local deployment as secondary option
+2. [testing-playbook.md](testing-playbook.md)
+   - run all validation and test scenarios in one place
+3. [k8s-operations-handbook.md](k8s-operations-handbook.md)
+   - day-2 operations and useful command lookup
+4. [system-design-and-operations-story.md](system-design-and-operations-story.md)
+   - interview/system-design narrative plus runtime, release, and SLO framing
+
+## Quick Entry by Role
+
+- Developer (implement + validate features):
+  1. [deployment-guide-k8s-first.md](deployment-guide-k8s-first.md)
+  2. [testing-playbook.md](testing-playbook.md)
+- Operator (deploy + troubleshoot + recover):
+  1. [deployment-guide-k8s-first.md](deployment-guide-k8s-first.md)
+  2. [k8s-operations-handbook.md](k8s-operations-handbook.md)
+- Interview Preparation (story + trade-offs + metrics):
+  1. [system-design-and-operations-story.md](system-design-and-operations-story.md)
+  2. [loadtest-baseline.md](loadtest-baseline.md)
+
+## Core Runbooks
+
+- [deployment-guide-k8s-first.md](deployment-guide-k8s-first.md)
+- [testing-playbook.md](testing-playbook.md)
+- [k8s-operations-handbook.md](k8s-operations-handbook.md)
 
 ## Architecture and Design
 
-- [interview-story.md](interview-story.md)
-  - 5-10 minute interview narrative
-  - design trade-offs and extension ideas
-
+- [system-design-and-operations-story.md](system-design-and-operations-story.md)
 - [diagrams/architecture.mmd](diagrams/architecture.mmd)
 - [diagrams/sequence-confirm.mmd](diagrams/sequence-confirm.mmd)
 - [diagrams/sequence-failure.mmd](diagrams/sequence-failure.mmd)
 
-## Data and Runtime Contract
-
-- [prisma-runtime-and-migrations.md](prisma-runtime-and-migrations.md)
-  - Prisma packaging strategy
-  - migration execution contract
-  - guardrails to avoid runtime Prisma errors
-
-## Environment and Validation Runbooks
-
-- [local-and-kind-runbook.md](local-and-kind-runbook.md)
-  - local bring-up and validation steps
-  - kind deployment, canary rollout/rollback, troubleshooting
-
-- [testing-playbook.md](testing-playbook.md)
-  - step-by-step test procedures
-  - API, idempotency, DB/MQ checks, retry/DLQ/replay
-
-## Observability
-
-- [monitoring-prometheus-grafana.md](monitoring-prometheus-grafana.md)
-  - kube-prometheus-stack installation on kind
-  - ServiceMonitor setup, dashboard provisioning, alert rules
-
-- [slo.md](slo.md)
-  - SLI/SLO proposals for API and worker pipeline
-  - error budget and alerting intent
+## Performance and Baseline Data
 
 - [loadtest-baseline.md](loadtest-baseline.md)
-  - k6 baseline scenario and measured results
-  - includes both original baseline and post-protection (rate-limit enabled) profile
+  - structured k6 run registry for longitudinal comparison
 
-## Release and Rollout
+## Historical and Decision Notes
 
-- [release-strategy.md](release-strategy.md)
-  - rolling update strategy and probes notes
-  - replica-based canary strategy and rollback
+- [adr/](adr)
+
+## Documentation Quality Gate
+
+- run `make docs-check` from repo root to validate:
+  - broken local links in markdown
+  - heading hierarchy jumps and H1 presence

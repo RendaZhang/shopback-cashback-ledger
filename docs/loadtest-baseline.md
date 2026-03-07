@@ -1,106 +1,141 @@
-# Load Test Baseline (k6)
+# Load Test Baseline Registry (k6)
 
-## Scenario
+This file records load-test runs in a structured, append-only format for long-term comparison.
 
-- create order + confirm order
-- stages: 20s@20 VUs -> 40s@50 VUs -> 20s ramp down
-- run date: 2026-03-06
-- run mode: Docker k6 (`--network host`) against `http://localhost:30080`
+**Owner:** Platform Engineering (Demo)  
+**Last Updated:** 2026-03-07  
+**Applies To:** k6 script `infra/loadtest/k6-create-confirm.js` against local/kind environments
 
-## k6 result (paste)
+## 1. Scenario Definition
 
-```text
-THRESHOLDS
-http_req_duration: p(95)=22.25ms (threshold p(95)<300) PASS
-http_req_failed: rate=0.00% (threshold rate<0.01) PASS
+- workload: create order + confirm order
+- script: `infra/loadtest/k6-create-confirm.js`
+- stages: `20s@20 VUs -> 40s@50 VUs -> 20s@0`
+- default thresholds:
+  - `http_req_failed: rate<0.01`
+  - `http_req_duration: p(95)<300`
 
-HTTP
-http_req_duration: avg=11.58ms med=10.13ms p(90)=19.24ms p(95)=22.25ms max=2.78s
-http_req_failed: 0.00% (0 out of 33836)
-http_reqs: 33836 (381.720445/s)
+## 2. Run Summary Table
 
-EXECUTION
-iterations: 16918 (190.860222/s)
-vus: max=49
-vus_max: 50
+| Run ID | Date | Change Set | Throttle Strategy | p95 Latency | Error Rate | Request Rate | Iteration Rate | Threshold Result |
+|---|---|---|---|---:|---:|---:|---:|---|
+| LT-001 | 2026-03-06 | Baseline before Redis cache | N/A | 22.25ms | 0.00% | 381.72 req/s | 190.86 iter/s | PASS |
+| LT-002 | 2026-03-06 | Redis cache + IP-based throttle | IP, 300/60s per pod | 7.8ms | 92.30% | 255.32 req/s | 244.47 iter/s | FAIL (`http_req_failed`) |
+| LT-003 | 2026-03-06 | Redis cache + user throttler guard | `X-User-Id` first, fallback IP, 600/60s | 20.84ms | 0.00% | 385.05 req/s | 192.53 iter/s | PASS |
+
+## 3. Detailed Runs
+
+### LT-001
+
+#### Metadata
+
+- date: 2026-03-06
+- environment: kind (`localhost:30080`)
+- command:
+
+```bash
+docker run --rm --network host -i grafana/k6 run -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
 ```
 
-## Observations
-
-- p95 latency: **22.25ms** (well below 300ms baseline threshold)
-- error rate: **0.00%**
-- throughput:
-  - request rate (`http_reqs`): **381.72 req/s**
-  - iteration rate (`iterations`): **190.86 iter/s**
-- bottlenecks hypothesis:
-  - DB connection / transaction time
-  - Prisma query latency
-  - Kafka/worker lag (async path)
-- notes:
-  - k6 emitted a high-cardinality warning due many unique URL time series; future script optimization can add stable request `name` tags to reduce cardinality noise.
-
-## Optimized Run (After Rate Limit + Cashback Rule Cache)
-
-- run date: 2026-03-06
-- run mode: Docker k6 (`--network host`, `--quiet`) against `http://localhost:30080`
-- app changes before run:
-  - global throttling enabled (`ttl=60_000ms`, `limit=300` per pod)
-  - cashback rule cache enabled (Redis + TTL + lock)
-
-### k6 result
+#### Key Metrics
 
 ```text
-THRESHOLDS
-http_req_duration: p(95)=7.8ms (threshold p(95)<300) PASS
-http_req_failed: rate=92.30% (threshold rate<0.01) FAIL
+http_req_duration: p(95)=22.25ms
+http_req_failed: rate=0.00%
+http_reqs: 33836 (381.720445/s)
+iterations: 16918 (190.860222/s)
+```
 
-HTTP
-http_req_duration: avg=2.96ms med=1.2ms p(95)=7.8ms max=2.94s
-http_req_failed: 92.30% (19550 out of 21180)
+#### Notes
+
+- This run represents baseline before Redis cashback-rule cache optimization.
+
+### LT-002
+
+#### Metadata
+
+- date: 2026-03-06
+- environment: kind (`localhost:30080`)
+- command:
+
+```bash
+docker run --rm --network host -i grafana/k6 run --quiet -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+```
+
+#### Key Metrics
+
+```text
+http_req_duration: p(95)=7.8ms
+http_req_failed: rate=92.30%
 http_reqs: 21180 (255.323498/s)
-
-EXECUTION
 iterations: 20280 (244.474057/s)
 ```
 
-### Interpretation
+#### Notes
 
-- This run is intentionally in a **protected** profile:
-  - k6 stage load exceeds the configured global throttle budget, so a large portion of requests are rejected as `429`.
-- Latency still remains low for accepted requests; failure-rate threshold now reflects protection behavior, not API correctness regression.
-- To compare pure service capacity with the original baseline, temporarily raise throttle limits or use a lower-VU test profile.
+- Redis cache was enabled, but throttling was IP-based and strict (`300/60s per pod`).
+- This intentionally produced a high 429 ratio under burst profile.
 
-## User-Based Throttle Run (Final)
+### LT-003
 
-- run date: 2026-03-06
-- run mode: Docker k6 (`--network host`, `--quiet`) against `http://localhost:30080`
-- app changes before run:
-  - throttler tracker: `X-User-Id` first, fallback to IP
-  - throttle config from env: `THROTTLE_TTL=60s`, `THROTTLE_LIMIT=600`
-  - k6 create/confirm requests now include `X-User-Id: u_<VU>`
+#### Metadata
 
-### k6 result
+- date: 2026-03-06
+- environment: kind (`localhost:30080`)
+- command:
+
+```bash
+docker run --rm --network host -i grafana/k6 run --quiet -e BASE_URL=http://localhost:30080 - < infra/loadtest/k6-create-confirm.js
+```
+
+#### Key Metrics
 
 ```text
-THRESHOLDS
-http_req_duration: p(95)=20.84ms (threshold p(95)<300) PASS
-http_req_failed: rate=0.00% (threshold rate<0.01) PASS
-
-HTTP
-http_req_duration: avg=11.66ms med=10.28ms p(95)=20.84ms max=2.63s
-http_req_failed: 0.00% (0 out of 33920)
+http_req_duration: p(95)=20.84ms
+http_req_failed: rate=0.00%
 http_reqs: 33920 (385.052687/s)
-
-EXECUTION
 iterations: 16960 (192.526344/s)
 ```
 
-### Prometheus verification
+#### Prometheus Validation
 
-- query: `sum(rate(http_requests_total{status="429"}[1m]))`
-- observed after run: `429_rate=0`
+- query:
 
-### Interpretation
+```promql
+sum(rate(http_requests_total{status="429"}[1m]))
+```
 
-- User-based throttling preserves abuse protection while avoiding cross-user contention during mixed-user load tests.
-- This matches real traffic assumptions better than pure IP-based throttling behind shared gateways.
+- observed: `0`
+
+#### Notes
+
+- k6 requests include `X-User-Id: u_<VU>`.
+- User-based throttling prevents cross-user contention and keeps error rate low for mixed-user traffic.
+
+## Template for Future Runs
+
+When adding a new run:
+
+1. Add one row to the summary table.
+2. Add one detailed section following this template.
+
+````md
+### LT-00X
+#### Metadata
+- date:
+- environment:
+- command:
+#### Key Metrics
+```text
+http_req_duration: p(95)=
+http_req_failed: rate=
+http_reqs:
+iterations:
+```
+#### Prometheus Validation (optional)
+- query:
+- observed:
+#### Notes
+- change set:
+- interpretation:
+````

@@ -277,10 +277,15 @@ for i in $(seq 1 10); do curl -s http://localhost:30080/health; echo; done
 
 ## Observability / Monitoring Stack (Prometheus + Grafana)
 
-Install and wire monitoring for API/worker metrics, dashboards, and alerts:
+Manual deployment and monitoring installation:
 
-- follow [docs/monitoring-prometheus-grafana.md](docs/monitoring-prometheus-grafana.md)
-- includes kube-prometheus-stack install, ServiceMonitors, Prometheus target verification, Grafana dashboard provisioning, and PrometheusRule alerts
+- follow [docs/deployment-guide-k8s-first.md](docs/deployment-guide-k8s-first.md)
+- includes kube-prometheus-stack install, ServiceMonitors, dashboard provisioning, and alert rules
+
+Scenario verification and expected results:
+
+- follow [docs/testing-playbook.md](docs/testing-playbook.md)
+- includes Prometheus target checks, Grafana dashboard checks, and alert validation
 
 ### Metrics
 
@@ -346,6 +351,7 @@ kubectl -n sb-ledger logs deploy/worker --tail=200
 ## Quality Commands
 
 ```bash
+make docs-check
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -353,15 +359,12 @@ pnpm test
 
 ## Further Documentation
 
+- [Deployment Guide (Kubernetes-First with Local Option)](docs/deployment-guide-k8s-first.md)
+- [Testing Playbook (All Scenarios)](docs/testing-playbook.md)
+- [Kubernetes Operations Handbook (Useful Commands)](docs/k8s-operations-handbook.md)
+- [System Design and Operations Story](docs/system-design-and-operations-story.md)
 - [Architecture Flow Chart](docs/diagrams/architecture.mmd)
 - [Confirm Sequence Diagram](docs/diagrams/sequence-confirm.mmd)
 - [Failure Sequence Diagram](docs/diagrams/sequence-failure.mmd)
 - [Documentation Index](docs/README.md)
-- [Interview Story](docs/interview-story.md)
-- [Prisma Runtime and Migrations](docs/prisma-runtime-and-migrations.md)
-- [Local and kind Runbook](docs/local-and-kind-runbook.md)
-- [Testing Playbook](docs/testing-playbook.md)
-- [Monitoring: Prometheus + Grafana](docs/monitoring-prometheus-grafana.md)
 - [Load Test Baseline (k6)](docs/loadtest-baseline.md)
-- [Release Strategy](docs/release-strategy.md)
-- [SLO (Service Level Objectives)](docs/slo.md)
