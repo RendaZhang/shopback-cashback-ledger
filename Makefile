@@ -22,13 +22,13 @@ docker-build:
 	docker build -f infra/docker/Dockerfile.worker -t sb-ledger-worker:dev .
 
 docs-check:
-	./scripts/docs-check.sh
+	bash ./scripts/docs-check.sh
 
 k8s-up:
-	./scripts/k8s-first-up.sh $(ARGS)
+	bash ./scripts/k8s-first-up.sh $(ARGS)
 
 k8s-smoke:
-	./scripts/k8s-smoke.sh $(ARGS)
+	bash ./scripts/k8s-smoke.sh $(ARGS)
 
 k8s-down:
-	./scripts/k8s-down.sh $(ARGS)
+	bash ./scripts/k8s-down.sh $(ARGS)
